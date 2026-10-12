@@ -18,6 +18,11 @@ html.is-app .btn,html.is-app .tab,html.is-app .lp-opt{-webkit-user-select:none;u
 .app-banner{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .app-banner span{flex:1 1 260px}
 .install-hint{position:fixed;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top));z-index:100;display:flex;gap:14px;align-items:center;max-width:min(560px,calc(100vw - 32px));padding:14px 16px;border-radius:20px;background:var(--surface);color:var(--ink);box-shadow:0 12px 40px rgba(0,0,0,.18);border:1px solid var(--line)}
+.ask-claude{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.ask-claude .ac-owl{width:34px;height:34px;display:block;margin:-6px 0}.ask-claude .ac-owl svg{width:34px;height:34px}
+.ask-claude.off{opacity:.55}
+.lp-top .ask-claude{flex:none;padding:8px 14px}
+@media (max-width:600px){.lp-top .ask-claude span:last-child{display:none}}
 .install-hint p{margin-top:4px;font-size:16px}
 </style>
 </head>
@@ -2804,11 +2809,14 @@ const LocalAssets=(()=>{
 })();
 
 function appBanner(){const b=$("aiBanner");if(!b||b.dataset.app)return;b.dataset.app="1";b.hidden=false;b.classList.add("app-banner");b.innerHTML="";
-  const p=document.createElement("span");p.textContent="Lessons, quizzes, games and Chiku's voice all work here, even offline. To chat with Chiku live, open the Claude version.";
+  const p=document.createElement("span");const msg=()=>{p.textContent=navigator.onLine?"Lessons, quizzes, games and Chiku's voice work here. For live chat, AI lessons and marking, tap to open Chiku on Claude.":"You're offline. Lessons, quizzes, games and Chiku's voice still work. Chiku's live chat comes back when the internet does."};msg();addEventListener("online",msg);addEventListener("offline",msg);
   const w=document.createElement("button");w.className="btn small";w.type="button";w.textContent="Chat with Chiku on Claude";w.onclick=openClaude;
   const x=document.createElement("button");x.className="iconbtn";x.type="button";x.setAttribute("aria-label","Hide");x.textContent="✕";x.onclick=()=>{b.hidden=true};
   b.append(p,w,x)}
-function openClaude(){window.open(CLAUDE_URL,"_blank","noopener")}
+function openClaude(){if(!navigator.onLine){toast("Chiku's chat needs the internet. Connect to Wi-Fi and try again.");speak("I need the internet to chat. Ask a grown-up to connect to Wi-Fi.","en");return}
+  SFX.init();window.open(CLAUDE_URL,"_blank","noopener")}
+function askChikuBtn(label){const b=el(`<button type="button" class="btn alt ask-claude"><span class="ac-owl" aria-hidden="true">${owlSVG()}</span><span></span></button>`);b.lastElementChild.textContent=label;b.onclick=openClaude;
+  const st=()=>{b.classList.toggle("off",!navigator.onLine);b.title=navigator.onLine?"Opens Chiku on Claude":"Needs the internet"};st();addEventListener("online",st);addEventListener("offline",st);return b}
 
 /* work checked without AI: celebrate the effort, grown-up can look */
 async function selfCheck(subject,t,typed,drew){
@@ -2849,6 +2857,8 @@ function backupCard(){const g=$("tab-grown");if(!g||g.querySelector("#appBackup"
 
 if(APP){
   document.documentElement.classList.add("is-app");
+  const _ol=openLesson;openLesson=function(...a){const r=_ol.apply(this,a);const top=document.querySelector(".lp-top");if(top&&!top.querySelector(".ask-claude"))top.append(askChikuBtn("Ask Chiku"));return r};
+  const _rl=renderLearn;renderLearn=function(...a){const r=_rl.apply(this,a);const h=document.querySelector("#tab-learn .map-head .mh-r")||document.querySelector("#tab-learn .map-head");if(h&&!h.querySelector(".ask-claude"))h.append(askChikuBtn("Ask Chiku a question"));return r};
   const _rg=renderGrown;renderGrown=function(){_rg();backupCard()};
   const _rcw=renderChatWelcome;renderChatWelcome=function(){_rcw();const chat=$("chat");if(!chat)return;
     const c=el(`<div class="card app-ask" style="display:grid;gap:10px;text-align:center;justify-items:center"><div style="width:96px">${owlSVG()}</div><h3 style="font-size:24px">Chat with Chiku</h3><p>Chiku's live chat runs on Claude. Tap below to open it, then come back here any time.</p><button class="btn mega" type="button">Open Chiku on Claude</button></div>`);
