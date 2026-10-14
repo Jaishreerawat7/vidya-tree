@@ -467,6 +467,20 @@ main>section:not([hidden]){animation:enter .32s cubic-bezier(.2,.8,.2,1)}
 .kh-steps span{border-radius:999px;padding:4px 12px;background:var(--surface-2);font-weight:700;font-size:14px}
 .kh-steps span.on{background:var(--leaf-soft);color:var(--leaf)}
 .kh-card .btn.mega{justify-self:stretch}
+.tree-cv{position:relative}
+.presenter{display:flex;align-items:center;gap:14px;cursor:pointer;margin-bottom:14px}
+.perch-wrap{position:relative;width:132px;flex:none;display:grid;justify-items:center}
+.presenter .perch{width:112px;display:block;position:relative;z-index:1;margin-bottom:-22px}.presenter .perch svg{width:112px;height:112px}
+.perch-wrap .branch{width:150px;height:38px;display:block}
+.presenter .bubble{position:relative;flex:1;background:#fff;color:#1D2A22;border-radius:24px;padding:14px 18px;font-size:20px;line-height:1.4;font-weight:600;box-shadow:0 8px 22px rgba(0,0,0,.10)}
+.presenter .bubble:before{content:"";position:absolute;left:-12px;top:42%;border:12px solid transparent;border-right-color:#fff;border-left:0}
+.kh-label{font:800 13px var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:6px}
+body[data-tab="home"] .buddy{display:none}
+@media (max-width:600px){.perch-wrap{width:96px}.presenter .perch,.presenter .perch svg{width:84px;height:84px}.perch-wrap .branch{width:104px}.presenter .bubble{font-size:17px}}
+.presenter .bubble .w.on{color:#C45A17}
+.fixit{margin-top:12px;background:#FFF6DD;border:2px solid #F2C14E;border-radius:18px;padding:12px 14px;display:grid;gap:6px}
+.lp-opt.reveal{animation:pop .5s 2}.lp-opt:disabled{opacity:.55}
+@keyframes pop{50%{transform:scale(1.08)}}
 .tree-card{margin-top:18px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px;align-items:center;background:linear-gradient(180deg,#E8F6FF,#F6FBEF);border-radius:28px;padding:16px;box-shadow:var(--shadow)}
 :root[data-theme="dark"] .tree-card{background:linear-gradient(180deg,#15283D,#17211B)}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .tree-card{background:linear-gradient(180deg,#15283D,#17211B)}}
@@ -569,7 +583,7 @@ main>section:not([hidden]){animation:enter .32s cubic-bezier(.2,.8,.2,1)}
 .res b{font-family:var(--display);font-size:18px}.res-d{font-size:14px;color:var(--muted)}.res-a{font-size:12px;font-weight:700}
 .research li{display:block}.research a{color:var(--sky);font-weight:700}
 @media (max-width:760px){
-  .tree-card{grid-template-columns:1fr}.tree-cv canvas{height:230px}
+  .tree-card{grid-template-columns:1fr}.tree-cv canvas{height:300px}
   .kid-hero h1{font-size:28px}.kh-card h2{font-size:23px}
   .lp-nav{bottom:calc(78px + env(safe-area-inset-bottom,0px))}
   .mowl{width:52px;height:52px}
@@ -1140,7 +1154,9 @@ How to teach:
 let voices=[];
 function loadVoices(){try{voices=speechSynthesis.getVoices()||[]}catch(e){voices=[]}}
 try{loadVoices();speechSynthesis.onvoiceschanged=loadVoices}catch(e){}
-const VOICE={baby:store("vt.baby")!=="0",auto:store("vt.auto")!=="0"};
+/* voice style: "friend" = natural, warm presenter voice (default); "little" = slightly higher little-owl voice */
+const VOICE={style:store("vt.vstyle")||"friend",auto:store("vt.auto")!=="0",get baby(){return this.style==="little"},set baby(v){this.style=v?"little":"friend";store("vt.vstyle",this.style)}};
+const VSTYLE={friend:{ls:1.0,rate:1,shift:false,noise:[.72,.9]},little:{ls:1.1,rate:1.1,shift:true,noise:[.72,.9]}};
 function speechText(t){return String(t).replace(/```[\s\S]*?(```|$)/g," ").replace(/^#{1,4}\s*(.+?)\s*\n/gm,"$1.\n").replace(/^PHOTO:.*$/gim,"").replace(/^Curriculum:.*$/gim,"").replace(/[*#`_>|]/g,"").replace(/\s+/g," ")}
 function plainForSpeech(t){return speechText(t).trim()}
 function pickVoice(want){
@@ -1159,30 +1175,32 @@ const CV={w:null,n:0,P:{},failed:false,items:[],playing:false,gen:0,el:null,warm
   call(m){return new Promise(r=>{const w=this.worker();if(!w)return r({ok:false});const id=++this.n;this.P[id]=r;w.postMessage({...m,id});setTimeout(()=>{if(this.P[id]){delete this.P[id];r({ok:false,timeout:true})}},90000)})},
   preload(lang="en"){if(this.warm[lang])return this.warm[lang];this.warm[lang]=this.call({type:"load",lang}).then(r=>{if(!r.ok&&!r.timeout)this.failed=true;return r.ok});return this.warm[lang]},
   player(){if(!this.el){this.el=new Audio();this.el.preload="auto";this.el.setAttribute("playsinline","")}return this.el},
-  unlock(){const a=this.player();try{a.src=wavURL(new Float32Array(2205),22050);a.play().catch(()=>{})}catch(e){}},
+  unlock(){this.unlocked=true;const a=this.player();try{a.src=wavURL(new Float32Array(2205),22050);a.play().catch(()=>{})}catch(e){}},
   busy(){return this.playing||this.items.length>0||(("speechSynthesis" in window)&&speechSynthesis.speaking)},
   stop(){this.gen++;this.items=[];this.playing=false;try{this.el&&this.el.pause()}catch(e){}try{speechSynthesis.cancel()}catch(e){}},
   enqueue(text,langCode){const gen=this.gen;const neural=!this.failed&&["en","hi","sa"].includes(langCode||S.lang);
     for(const sen of sentences(text)){for(const run of scriptRuns(sen)){
       const lang=/[ऀ-ॿ]/.test(run)?"hi":"en";const item={text:run,caption:sen,lang,gen,neural:neural&&!(lang==="en"&&/[؀-ۿ஀-෿一-鿿]/.test(run))};
-      if(item.neural){const ls=VOICE.baby?1.22:1.05;item.audio=this.preload(lang).then(ok=>ok?this.call({type:"speak",text:run,lang,lengthScale:ls*(age()<=8?1.06:1)}):{ok:false})}
+      if(item.neural){const vs=VSTYLE[VOICE.style]||VSTYLE.friend;item.audio=this.preload(lang).then(ok=>ok?this.call({type:"speak",text:run,lang,lengthScale:vs.ls*(age()<=8?1.07:1),noise:vs.noise}):{ok:false})}
       this.items.push(item)}}
     if(!this.playing)this.next()},
   async next(){const it=this.items.shift();if(!it){this.playing=false;Buddy.quiet();if(speakBtn){speakBtn.textContent=speakBtn.dataset.label;speakBtn=null}return}
     this.playing=true;const gen=it.gen;
     if(it.neural){const slow=setTimeout(()=>{if(gen===this.gen)Buddy.talk("Getting my voice ready…")},700);const r=await it.audio;clearTimeout(slow);if(gen!==this.gen)return;
-      if(r&&r.ok&&r.audio){Buddy.talk(it.caption);const a=this.player();setTimeout(()=>dispatchEvent(new CustomEvent("chiku-say",{detail:{text:it.text,audio:a}})),0);a.src=wavURL(r.audio,r.sr);a.preservesPitch=false;a.mozPreservesPitch=false;a.webkitPreservesPitch=false;a.playbackRate=VOICE.baby?1.2:1;
+      if(r&&r.ok&&r.audio){Buddy.talk(it.caption);const a=this.player();setTimeout(()=>dispatchEvent(new CustomEvent("chiku-say",{detail:{text:it.text,audio:a}})),0);const vs=VSTYLE[VOICE.style]||VSTYLE.friend;a.src=wavURL(pad(r.audio,r.sr),r.sr);a.preservesPitch=!vs.shift;a.mozPreservesPitch=!vs.shift;a.webkitPreservesPitch=!vs.shift;a.playbackRate=vs.rate;
         const done=()=>{a.onended=a.onerror=null;URL.revokeObjectURL(a.src);if(gen===this.gen)this.next()};a.onended=done;a.onerror=done;
         try{await a.play()}catch(e){done()}return}
       if(r&&!r.ok&&!r.timeout)this.failed=true}
     deviceSay(it.text,it.caption,()=>{if(gen===this.gen)this.next()})}
 };
 function scriptRuns(s){const runs=s.match(/[ऀ-ॿ][ऀ-ॿ\s\d,.;:!?'"()\-–—।॥]*|[^ऀ-ॿ]+/g)||[s];return runs.map(r=>r.trim()).filter(r=>/[\p{L}\p{N}]/u.test(r))}
+/* a short natural breath of silence after each sentence */
+function pad(f,sr){const n=Math.round(sr*.16),o=new Float32Array(f.length+n);o.set(f);return o}
 function wavURL(f,sr){let peak=0;for(let i=0;i<f.length;i++){const v=Math.abs(f[i]);if(v>peak)peak=v}const g=peak>0?Math.min(4,.92/peak):1;const n=f.length,b=new ArrayBuffer(44+n*2),d=new DataView(b);const w=(o,s)=>{for(let i=0;i<s.length;i++)d.setUint8(o+i,s.charCodeAt(i))};
   w(0,"RIFF");d.setUint32(4,36+n*2,true);w(8,"WAVEfmt ");d.setUint32(16,16,true);d.setUint16(20,1,true);d.setUint16(22,1,true);d.setUint32(24,sr,true);d.setUint32(28,sr*2,true);d.setUint16(32,2,true);d.setUint16(34,16,true);w(36,"data");d.setUint32(40,n*2,true);
   const fade=Math.min(n/4,sr*.012);for(let i=0;i<n;i++){let v=f[i]*g;if(i<fade)v*=i/fade;else if(i>n-fade)v*=(n-i)/fade;d.setInt16(44+i*2,Math.max(-32768,Math.min(32767,v*32767)),true)}
   return URL.createObjectURL(new Blob([b],{type:"audio/wav"}))}
-function deviceSay(text,caption,done){try{if(!("speechSynthesis" in window))return done();const want=langFor(text);const v=pickVoice(want);const u=new SpeechSynthesisUtterance(text);u.lang=want;if(v)u.voice=v;u.pitch=VOICE.baby?1.6:1.05;u.rate=age()<=8?.92:.98;
+function deviceSay(text,caption,done){try{if(!("speechSynthesis" in window))return done();const want=langFor(text);const v=pickVoice(want);const u=new SpeechSynthesisUtterance(text);u.lang=want;if(v)u.voice=v;u.pitch=VOICE.baby?1.35:1.08;u.rate=age()<=8?.92:.98;
   u.onstart=()=>{Buddy.talk(caption);dispatchEvent(new CustomEvent("chiku-say",{detail:{text,audio:null}}))};u.onend=u.onerror=()=>done();speechSynthesis.speak(u)}catch(e){done()}}
 function queueSpeech(text,langCode){CV.enqueue(text,langCode||S.lang)}
 function hush(){CV.stop();Buddy.quiet();if(speakBtn){speakBtn.textContent=speakBtn.dataset.label;speakBtn=null}}
@@ -1389,7 +1407,7 @@ function renderLearnV5(){
     b.onclick=()=>openLesson(S.subject,t.id);path.append(b)});
   h.append(path);
   const qa=el(`<div id="subjQuizArea"></div>`);h.append(qa);
-  $("subjQuiz").onclick=()=>{qa.textContent="";runQuiz(qa,{subject:S.subject,count:age()<=7?5:8,onDone:(sc,tot)=>{const n=Math.min(5,Math.floor(sc/2));if(n)earn(n,"Great quiz!")}});qa.scrollIntoView({behavior:"smooth",block:"start"})};
+  $("subjQuiz").onclick=()=>{qa.textContent="";runQuiz(qa,{subject:S.subject,count:age()<=7?5:8,onDone:(sc,tot)=>{if(sc/tot>=.8)earn(2,"Quiz bonus!")}});qa.scrollIntoView({behavior:"smooth",block:"start"})};
 }
 async function buildPath(subject,box){
   if(!S.sample){showAIOff();return}const btn=box.querySelector("button");btn.disabled=true;box.querySelector(".note").textContent="Planning topics…";
@@ -1485,7 +1503,7 @@ async function checkWork(subject,t){
     if(r.seen){const sn=el(`<p class="seen">👀 <b>Chiku sees:</b> <span></span></p>`);sn.querySelector("span").textContent=r.seen;fb.insertBefore(sn,fb.querySelector("strong"))}markLookFor(r.found);
     fb.querySelector("strong").textContent=r.praise||"Well done!";fb.querySelector("p:not(.seen)").textContent=r.feedback||"";fb.querySelector(".note").textContent=r.next?("Next: "+r.next):"";
     fb.querySelector(".tools button").onclick=e=>speak(`${r.seen||""} ${r.praise||""} ${r.feedback||""} ${r.next||""}`,S.lang,e.target);out.append(fb);
-    const d=setTopicStars(t.id,n);refreshLessonStars(t.id);if(d)earn(d,"Great work!");else SFX.ding();document.dispatchEvent(new CustomEvent("work-checked",{detail:{n,topic:t.id}}));Buddy.happy();if(VOICE.auto){hush();queueSpeech(`${r.seen||""} ${r.praise||""} ${r.feedback||""} ${r.next||""}`,S.lang)}
+    setTopicStars(t.id,n);refreshLessonStars(t.id);SFX.ding();document.dispatchEvent(new CustomEvent("work-checked",{detail:{n,topic:t.id}}));Buddy.happy();if(VOICE.auto){hush();queueSpeech(`${r.seen||""} ${r.praise||""} ${r.feedback||""} ${r.next||""}`,S.lang)}
     $("saveWork").onclick=()=>saveWork(t,(r.praise||"")+" "+(r.feedback||""));
   }catch(e){Buddy.think(false);out.append(el(`<div class="fb">${esc(aiErr(e)||"Stopped.")}</div>`))}finally{btn.disabled=false}
 }
@@ -1507,9 +1525,9 @@ async function runQuiz(host,{subject,topic,count,onDone}){
   const lvl=levelFor(subject),weak=weakSkills(subject).slice(0,3).map(w=>w[0]),L=(LANG[S.lang]||LANG.en).name;
   try{
     const q=await S.sample.json(`${learnerBrief()}\nWrite a ${count}-question multiple-choice quiz in ${SUBJ[subject].name}${topic?` on "${topic}"`:` covering these syllabus topics for ${(cur()||{}).curriculum} ${(cur()||{}).grade}: ${pathFor(subject).slice(0,14).map(x=>x.t).join("; ")}`}. Difficulty: ${lvl} for this learner's age and curriculum. Language: ${L} (Hindi/Sanskrit/Rig Veda in Devanagari, with transliteration if the language is not Hindi).${weak.length?` Include some questions on skills they missed before: ${weak.join("; ")}.`:""}
-Mix recall, understanding and real-life questions. Exactly one correct answer and 3 plausible wrong options each. Short wording for young children. Accurate facts.
+Mix recall, understanding and real-life questions.${seenQ(subject).length?` These were already asked before. Do NOT repeat them or ask them in a slightly different way; ask NEW questions: ${seenQ(subject).slice(-40).join(" | ")}`:""} Exactly one correct answer and 3 plausible wrong options each. Short wording for young children. Accurate facts.
 Reply only JSON: {"title":string,"questions":[{"q":string,"options":[string,string,string,string],"answer":0-3,"hint":string,"explain":string,"skill":string (3-6 words)}]}`,{modelTier:ageBand()==="teen"||ageBand()==="adult"?"default":"quick",cache:false});
-    const qs=(q&&q.questions||[]).filter(x=>x&&x.q&&Array.isArray(x.options)&&x.options.length>=2&&Number.isInteger(+x.answer)&&+x.answer<x.options.length).map(x=>({...x,answer:+x.answer}));
+    const seen=new Set(seenQ(subject).map(normQ));const qs=(q&&q.questions||[]).filter(x=>x&&x.q&&Array.isArray(x.options)&&x.options.length>=2&&Number.isInteger(+x.answer)&&+x.answer<x.options.length&&!seen.has(normQ(x.q))).map(x=>({...x,answer:+x.answer}));
     if(!qs.length)throw {code:"invalid_json"};
     const Q={title:q.title||SUBJ[subject].name+" quiz",subject,topic:topic||"",level:lvl,qs,i:0,res:[]};renderQ(host,Q,onDone);
   }catch(e){host.innerHTML=`<p class="note" style="margin-top:12px">${esc(aiErr(e))}</p>`}
@@ -1527,14 +1545,21 @@ function renderQ(host,Q,onDone){
   tools.append(lb,hb);card.append(tools);host.append(card);if(VOICE.auto&&age()<=8)setTimeout(()=>speak(q.q+". "+q.options.map((o,k)=>("ABCD"[k]||"")+": "+o).join(". "),S.lang),250);
 }
 function answerQ(host,Q,k,opts,card,onDone){
-  const q=Q.qs[Q.i],ok=k===q.answer;[...opts.children].forEach((b,j)=>{b.disabled=true;if(j===q.answer)b.classList.add("right");else if(j===k)b.classList.add("wrong")});
-  ok?SFX.ding():SFX.buzz();if(ok)Buddy.happy();
-  Q.res.push({ok,skill:q.skill||"general",q:q.q,chosen:q.options[k],correct:q.options[q.answer]});
-  const f=el(`<div class="fb"><strong></strong><p style="margin-top:4px"></p></div>`);f.querySelector("strong").textContent=ok?["Brilliant!","Well done!","Super!","You got it!"][Q.i%4]:["Nearly! Let's see why.","Good try! Here's the idea."][Q.i%2];f.querySelector("p").textContent=q.explain||"";card.append(f);if(VOICE.auto){hush();queueSpeech(f.querySelector("strong").textContent+" "+(q.explain||""),S.lang)}
+  const q=Q.qs[Q.i],ok=k===q.answer;q._tries=(q._tries||0)+1;
+  /* wrong on the first try: Chiku helps and she tries again */
+  if(!ok&&q._tries===1){const b=opts.children[k];b.classList.add("wrong");b.disabled=true;SFX.buzz();
+    const f=el(`<div class="fb try"><strong></strong><p style="margin-top:4px"></p></div>`);f.querySelector("strong").textContent=gentle();f.querySelector("p").textContent="Hint: "+(q.hint||"Read each answer slowly.");card.append(f);hush();queueSpeech(f.querySelector("strong").textContent+" "+(q.hint||""),S.lang);return}
+  card.querySelectorAll(".fb.try").forEach(x=>x.remove());
+  [...opts.children].forEach((b,j)=>{b.disabled=true;if(j===q.answer)b.classList.add("right");else if(j===k)b.classList.add("wrong")});
+  ok?SFX.ding():SFX.buzz();if(ok)Buddy.happy();if(ok&&q._tries===1&&!q._again)quietStar();
+  if(!ok&&!q._again&&!Q.qs.some(x=>x._again&&x.q===q.q))Q.qs.push({...q,_again:true,_tries:0});
+  rememberQ(Q.subject,q.q);
+  if(!q._again)Q.res.push({ok:ok&&q._tries===1,skill:q.skill||"general",q:q.q,chosen:q.options[k],correct:q.options[q.answer]});
+  const f=el(`<div class="fb"><strong></strong><p style="margin-top:4px"></p></div>`);f.querySelector("strong").textContent=ok?cheer():"Let's look together. The answer is "+q.options[q.answer]+"."+(Q.qs.some(x=>x._again&&x.q===q.q)?" We'll try it again at the end!":"");f.querySelector("p").textContent=q.explain||"";card.append(f);if(VOICE.auto){hush();queueSpeech(f.querySelector("strong").textContent+" "+(q.explain||""),S.lang)}
   const nb=el(`<button class="btn" type="button">${Q.i+1<Q.qs.length?"Next question":"See my score"}</button>`);nb.onclick=()=>{Q.i++;Q.i<Q.qs.length?renderQ(host,Q,onDone):finishQ(host,Q,onDone)};card.append(nb);nb.focus();
 }
 async function finishQ(host,Q,onDone){
-  const score=Q.res.filter(r=>r.ok).length,total=Q.qs.length,pct=score/total;host.textContent="";
+  const score=Q.res.filter(r=>r.ok).length,total=Q.res.length||1,pct=score/total;host.textContent="";
   const card=el(`<div class="qcard s-${Q.subject}" style="margin-top:12px"><div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap"><div class="score-big">${score}/${total}</div>${stars3(pct>=.9?3:pct>=.6?2:pct>0?1:0)}</div><p>${pct>=.9?"Amazing work!":pct>=.6?"Great effort! A little more practice and you'll master it.":"Good start! Let's practise together."}</p></div>`);
   const wrong=Q.res.filter(r=>!r.ok);
   if(wrong.length){const ul=el(`<ul class="list"></ul>`);wrong.forEach(w=>{const li=document.createElement("li");li.innerHTML=`<span>${esc(w.q)}</span><span class="pill">${esc(w.correct)}</span>`;ul.append(li)});card.append(ul);
@@ -2097,22 +2122,30 @@ function drawTree(cv,{animate=true}={}){
 /* ---------- HOME: today's adventure ---------- */
 const ADV_ORDER=["maths","english","science","hindi","maths","english","sanskrit","rigveda"];
 function todaysSubject(){const p=cur()||{};const d=Math.floor(Date.now()/864e5);return ADV_ORDER[d%ADV_ORDER.length]}
-function advState(){const p=cur()||{};return p.adv&&p.adv.d===today()?p.adv:{d:today(),done:false}}
+function advState(){const p=cur()||{};return p.adv&&p.adv.d===today()?p.adv:{d:today(),done:false,ids:[]}}
+/* the next adventure: today's subject first, then the others; never a topic already done today or already mastered */
+function advPick(){const adv=advState(),done=adv.ids||[],start=Math.floor(Date.now()/864e5);
+  for(let k=0;k<ADV_ORDER.length;k++){const s=ADV_ORDER[(start+k)%ADV_ORDER.length];const t=nextTopic(s);if(t&&!done.includes(t.id)&&(topicState(t.id).stars||0)<2)return {subj:s,t}}
+  const s=todaysSubject();return {subj:s,t:nextTopic(s)}}
 function renderHome(){
   const h=$("tab-home");h.textContent="";const p=cur();const name=p?p.name:"friend";
-  const subj=todaysSubject(),t=nextTopic(subj),adv=advState();
+  const adv=advState(),pick=advPick(),subj=pick.subj,t=pick.t;
   const yd=new Date(Date.now()-864e5),ys=yd.getFullYear()+"-"+String(yd.getMonth()+1).padStart(2,"0")+"-"+String(yd.getDate()).padStart(2,"0");
   const streak=(p&&p.streak&&(p.streak.last===today()||p.streak.last===ys))?p.streak.days:0;
   const hero=el(`<section class="kid-hero s-${subj}">
      <div class="kh-top"><button class="owlbtn heroowl" type="button" aria-label="Tap Chiku">${owlSVG()}</button>
-       <div><p class="kh-hi">${greeting()}, ${esc(name)}!</p><h1>${adv.done?"Adventure done!":"Today's adventure"}</h1></div></div>
+       <div><p class="kh-hi">${greeting()}, ${esc(name)}!</p><h1>${adv.done?"Ready for another adventure?":"Today's adventure"}</h1></div></div>
      <div class="kh-card"><span class="kh-sub"><span class="glyph">${SUBJ[subj].glyph}</span>${SUBJ[subj].name}</span>
        <h2></h2><p class="note"></p>
-       <div class="kh-steps"><span class="${adv.done?"on":""}">Watch &amp; learn</span><span class="${adv.done?"on":""}">Try it</span><span class="${adv.done?"on":""}">Draw it</span><span class="${adv.done?"on":""}">Sticker</span></div>
-       <button class="btn mega" type="button" id="advGo">${adv.done?"Play it again":"Start"} <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path d="M8 5l11 7-11 7z" fill="currentColor"/></svg></button></div>
+       <div class="kh-steps"><span class="">Watch &amp; learn</span><span class="">Try it</span><span class="">Draw it</span><span class="">Sticker</span></div>
+       <button class="btn mega" type="button" id="advGo">${adv.done?"Next adventure":"Start"} <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path d="M8 5l11 7-11 7z" fill="currentColor"/></svg></button></div>
    </section>`);
   hero.querySelector("h2").textContent=t.t;hero.querySelector(".note").textContent=t.ref||t.goal||"";
-  hero.querySelector(".heroowl").onclick=()=>Buddy.say(adv.done?`Well done ${name}! You finished today's adventure. You can play a game now!`:`Hi ${name}! Today we will learn: ${t.t}. Tap Start!`,"en");
+  const BR=`<svg class="branch" viewBox="0 0 160 40" aria-hidden="true"><path d="M0 26 Q60 14 160 22 L160 30 Q70 26 0 36Z" fill="#8A5A36"/><ellipse cx="22" cy="18" rx="14" ry="7" fill="#4CAF50" transform="rotate(-20 22 18)"/><ellipse cx="140" cy="14" rx="15" ry="7" fill="#58B368" transform="rotate(15 140 14)"/><ellipse cx="118" cy="32" rx="12" ry="6" fill="#4CAF50"/></svg>`;
+  const pr=el(`<div class="presenter" role="button" tabindex="0" aria-label="Chiku says"><span class="perch-wrap"><span class="lp-owl perch" aria-hidden="true">${owlSVG()}</span>${BR}</span><p class="bubble"></p></div>`);
+  const script=presenterScript(adv,t);pr.querySelector(".bubble").innerHTML=wordsHTML(script);pr.onclick=()=>{SFX.init();speak(script,"en")};
+  hero.querySelector(".kh-top").replaceWith(pr);hero.querySelector(".kh-card h2").insertAdjacentHTML("beforebegin",`<p class="kh-label">${adv.done?"Next adventure":"Today's adventure"}</p>`);presentOnce(script);
+  if(0)hero.querySelector(".heroowl").onclick=()=>Buddy.say(adv.done?`Well done ${name}! You finished today's adventure. You can play a game now!`:`Hi ${name}! Today we will learn: ${t.t}. Tap Start!`,"en");
   hero.querySelector("#advGo").onclick=()=>{SFX.init();S.subject=subj;switchTab("learn");openLesson(subj,t.id,{adventure:true})};
   h.append(hero);
   /* tree + stats */
@@ -2122,6 +2155,7 @@ function renderHome(){
        <div class="pills3"><span><b>${learned}</b> fruits</span><span><b>${streak}</b> day streak</span><span><b>${wallet()}</b> ★</span></div>
        <div class="legend">${SUBJECTS.map(s=>`<span><i style="background:${SUBJ_COL[s.id]}"></i>${s.name}</span>`).join("")}</div></div></section>`);
   h.append(tree);requestAnimationFrame(()=>drawTree(tree.querySelector("canvas")));
+
   /* subject islands */
   h.append(el(`<div class="sec-title"><h2>Choose a world</h2></div>`));
   const isl=el(`<div class="islands"></div>`);
@@ -2204,9 +2238,12 @@ function openLesson(subject,topicId,opts={}){
 function lpProgress(){const total=Math.max(LP.cards.length,6)+1;const b=document.querySelector(".lp-prog i");if(b)b.style.width=Math.round((LP.i+1)/total*100)+"%"}
 async function loadCards(subject,t){
   const key=`${t.id}-${S.lang}-cards`.replace(/[^A-Za-z0-9_.~:@+-]/g,"_");const pid=S.pid;const myLP=LP;
-  const useCards=(cards,turn,scaf)=>{if(LP!==myLP)return;LP.cards=cards;if(turn)LP.turn=turn;if(scaf)LP.scaf=scaf;Buddy.think(false);if(!LP.shown){LP.shown=true;LP.i=0;showCard()}else lpProgress()};
-  if(S.lessons[pid+key]){const c=S.lessons[pid+key];myLP.loaded=true;return useCards(c.cards,c.turn,c.scaf)}
-  if(S.db&&pid){try{const d=await S.db.doc(`profiles/${pid}/lessons/${key}`).get();if(d.exists){const v=JSON.parse(d.data().json);S.lessons[pid+key]=v;myLP.loaded=true;return useCards(v.cards,v.turn,v.scaf)}}catch(e){}}
+  const useCards=(cards,turn,scaf)=>{if(LP!==myLP)return;LP.cards=cards.map((c,i)=>(LP.cards&&LP.cards[i]&&LP.cards[i]._src===c)?LP.cards[i]:freshCard(c));if(turn)LP.turn=turn;if(scaf)LP.scaf=scaf;Buddy.think(false);if(!LP.shown){LP.shown=true;LP.i=0;showCard()}else lpProgress()};
+  /* a topic she has already finished gets a brand-new lesson (new examples and questions), not a replay */
+  const again=!!S.sample&&(topicState(t.id).stars||0)>=2&&!(LP.opts&&LP.opts.replay);let prev=null;
+  if(S.lessons[pid+key]){const c=S.lessons[pid+key];if(!again){myLP.loaded=true;return useCards(c.cards,c.turn,c.scaf)}prev=c}
+  if(!prev&&S.db&&pid){try{const d=await S.db.doc(`profiles/${pid}/lessons/${key}`).get();if(d.exists){const v=JSON.parse(d.data().json);S.lessons[pid+key]=v;if(!again){myLP.loaded=true;return useCards(v.cards,v.turn,v.scaf)}prev=v}}catch(e){}}
+  const avoid=prev?`\nThis child has ALREADY done a lesson on this topic. Make this one NEW and a little more challenging: a different hook, different examples, different check questions and a different drawing activity. Do not reuse any of these earlier lines: ${prev.cards.map(c=>c.say+(c.check?" / "+c.check.q:"")).join(" | ").slice(0,1500)}`:"";
   if(!S.sample&&typeof OFFLINE_LESSONS!=="undefined"&&OFFLINE_LESSONS[t.id]){const v=OFFLINE_LESSONS[t.id];myLP.loaded=true;return useCards(v.cards,v.turn)}
   if(!S.sample){Buddy.think(false);LP.cards=offlineCards(t);LP.loaded=true;LP.shown=true;showCard();return}
   const ctl=new AbortController();lessonCtl=ctl;let pending="",cards=[],turn=null,scaf=null;
@@ -2218,7 +2255,7 @@ Make a bite-sized lesson on: "${t.t}"${t.ref?` — exactly this syllabus item: $
 Write 7 cards, ONE JSON object per line (no other text, no code fences). Each card:
 {"say":"what Chiku says aloud: 1-2 short sentences, at most ${age()<=7?"22":"35"} words, warm and simple","visual":VISUAL,"check":null or {"q":"a question Chiku asks aloud","options":["2-4 very short options (numbers, single words, or a symbol)"],"answer":INDEX,"yes":"short praise","no":"short gentle hint"}}
 VISUAL is one of: {"type":"svg","svg":"<svg viewBox='0 0 320 220' xmlns='http://www.w3.org/2000/svg'>…</svg>"} (bright flat colours, chunky shapes, big labels font-size 18+, may use SMIL <animate> to show the idea moving; no scripts, no <image>, no links) — or {"type":"photo","title":"one of: ${photoList()}"} — or {"type":"big","text":"a few big characters, e.g. 3 + 2 = 5, or अ"}.
-Plan: card 1 = a hook from the child's real life (UAE home, Indian heritage); cards 2-5 teach ONE idea in small steps with a worked example; cards 3, 5 and 7 have a "check"; card 7 is a fun recap check. Every card must have a visual. Accuracy first; child-safe.
+Plan:${avoid} card 1 = a hook from the child's real life (UAE home, Indian heritage); cards 2-5 teach ONE idea in small steps with a worked example; cards 3, 5 and 7 have a "check"; card 7 is a fun recap check. Every card must have a visual. Accuracy first; child-safe.
 Then a final line: {"turn":"one drawing or writing activity for the drawing board that practises this exact topic, simple enough for this child","steps":["3 tiny steps telling the child exactly what to draw or write, in order"],"look_for":["2-3 things a grown-up can see in a finished drawing, each starting with I (e.g. I drew roots under the soil)"],"example":{"type":"svg","svg":"<svg viewBox='0 0 320 220' xmlns='http://www.w3.org/2000/svg'>a simple, clear model answer drawing for this activity with big labels</svg>"}}`,
       {signal:ctl.signal,cache:false,modelTier:"default",onText:({delta})=>eat(delta,false)});
     eat("",true);
@@ -2246,8 +2283,14 @@ function showCard(){
   LP.answered=!c.check;
   if(c.check){const q=el(`<div class="lp-check"><p class="lp-q"></p><div class="lp-opts"></div></div>`);q.querySelector(".lp-q").innerHTML=wordsHTML(c.check.q);
     const ops=q.querySelector(".lp-opts");(c.check.options||[]).forEach((o,k)=>{const b=el(`<button type="button" class="lp-opt"></button>`);b.textContent=o;
-      b.onclick=()=>{if(LP.answered)return;SFX.init();if(k===+c.check.answer){LP.answered=true;b.classList.add("right");SFX.ding();Buddy.happy();celebrate(1);hush();queueSpeech(c.check.yes||"Yes! Well done!",S.lang);$("lpNext").classList.add("pulse")}
-        else{b.classList.add("wrong");SFX.buzz();setTimeout(()=>b.classList.remove("wrong"),600);hush();queueSpeech(c.check.no||"Nearly! Try again.",S.lang)}};ops.append(b)});
+      b.onclick=()=>{if(LP.answered||b.disabled)return;SFX.init();c._tries=(c._tries||0)+1;
+        if(k===+c.check.answer){LP.answered=true;b.classList.add("right");SFX.ding();Buddy.happy();celebrate(1);hush();
+          const first=c._tries===1&&!c._again;if(first){quietStar()}queueSpeech(cheer(c.check.yes),S.lang);$("lpNext").classList.add("pulse")}
+        else{b.classList.add("wrong");b.disabled=true;SFX.buzz();hush();
+          if(c._tries>=2){LP.answered=true;const right=ops.children[+c.check.answer];right.classList.add("right","reveal");
+            queueSpeech(`Let's look together. The answer is ${c.check.options[+c.check.answer]}. ${c.check.yes||""} We will try one like this again soon!`,S.lang);
+            if(!c._again)LP.cards.push({...c,_again:true,_tries:0,say:"Let's try this one again! "+c.say});$("lpNext").classList.add("pulse")}
+          else queueSpeech(gentle(c.check.no),S.lang)}};ops.append(b)});
     card.append(q)}
   st.append(card);
   $("lpPrev").disabled=LP.i===0;const nb=$("lpNext");nb.classList.remove("pulse");nb.firstChild.textContent=LP.i===LP.cards.length-1&&LP.loaded?"Your turn ":"Next ";
@@ -2261,8 +2304,8 @@ function nextCard(){
   showTurn();
 }
 /* karaoke highlight while Chiku speaks */
-addEventListener("chiku-say",e=>{const {text,audio}=e.detail||{};const root=document.querySelector(".lp-card");if(!root)return;
-  const holders=[...root.querySelectorAll(".lp-say,.lp-q")];const holder=holders.find(hd=>hd.textContent.replace(/\s+/g," ").includes(String(text).trim().slice(0,24)));if(!holder)return;
+addEventListener("chiku-say",e=>{const {text,audio}=e.detail||{};const root=document.querySelector(".lp-card")||((S.tab||"home")==="home"&&document.querySelector(".presenter"));if(!root)return;
+  const holders=[...root.querySelectorAll(".lp-say,.lp-q,.bubble")];const holder=holders.find(hd=>hd.textContent.replace(/\s+/g," ").includes(String(text).trim().slice(0,24)));if(!holder)return;
   const spans=[...holder.querySelectorAll(".w")];const plain=holder.textContent;const start=plain.indexOf(String(text).trim().slice(0,12));
   let acc=0;const sel=spans.filter(s=>{const pos=plain.indexOf(s.textContent,acc);acc=pos+s.textContent.length;return pos>=start&&pos<start+String(text).length+2});
   holders.forEach(hd=>hd.querySelectorAll(".w.on").forEach(w=>w.classList.remove("on")));
@@ -2285,7 +2328,7 @@ function showTurn(){
   lessonBoard=Board($("boardHost"),{guide:SUBJ[LP.subject].guide,ratio:.75,max:620,task:$("yourTask").textContent,onSubmit:()=>checkWork(LP.subject,t)});
   renderScaffold(scaffoldFor(t,LP.scaf,$("yourTask").textContent));
   $("checkBtn").onclick=()=>checkWork(LP.subject,t);$("saveWork").onclick=()=>saveWork(t,null);
-  $("skipTurn").onclick=()=>{const d=setTopicStars(t.id,1);if(d)earn(d,"Lesson done!");showReward(1)};
+  $("skipTurn").textContent="Finish later";$("skipTurn").onclick=()=>{hush();speak("Okay! We can finish this drawing later. It will be waiting for you.","en");learnView=null;LP=null;delete document.body.dataset.lesson;renderLearn()};LP.tries=0;LP.paid=false;
   hush();queueSpeech("Your turn! "+$("yourTask").textContent,"en");
 }
 function renderScaffold(sc){LP.sc=sc;const box=$("scaf");box.textContent="";
@@ -2302,14 +2345,43 @@ function renderScaffold(sc){LP.sc=sc;const box=$("scaf");box.textContent="";
 }
 function markLookFor(found){if(!Array.isArray(found))return;document.querySelectorAll("#lookFor .lf").forEach((b,i)=>{if(found[i]===true)b.setAttribute("aria-pressed","true");b.classList.toggle("miss",found[i]===false)})}
 function lookTicked(){return [...document.querySelectorAll("#lookFor .lf")].filter(b=>b.getAttribute("aria-pressed")==="true").length}
-document.addEventListener("work-checked",e=>{if(!LP||!document.querySelector(".lp-turn"))return;const n=(e.detail||{}).n||1;
-  const go=el(`<button class="btn mega alt" type="button" style="margin-top:12px">Collect my sticker</button>`);go.onclick=()=>showReward(n);$("checkOut").append(go);go.scrollIntoView({behavior:"smooth",block:"center"})});
+document.addEventListener("work-checked",e=>{if(!LP||!document.querySelector(".lp-turn"))return;const n=(e.detail||{}).n||1;LP.tries=(LP.tries||0)+1;
+  if(n>=2||LP.tries>=3){if(!LP.paid){LP.paid=true;earn(n,n===3?"Perfect work!":"Great work!")}
+    const go=el(`<button class="btn mega alt" type="button" style="margin-top:12px">Collect my sticker</button>`);go.onclick=()=>showReward(n);$("checkOut").append(go);go.scrollIntoView({behavior:"smooth",block:"center"})}
+  else{const box=el(`<div class="fixit"><strong>Let's make it even better! 💪</strong><p>Look at the yellow boxes in <b>Did I…?</b> and add what's missing to your drawing.</p><div class="tools"><button class="btn mega" type="button">✏️ Fix my work</button></div></div>`);
+    box.querySelector("button").onclick=()=>{const ex=document.querySelector(".ex-show");if(ex&&!ex.hidden)ex.click();$("boardHost").scrollIntoView({behavior:"smooth",block:"center"})};
+    $("checkOut").append(box);setTimeout(()=>{hush();queueSpeech("Let's make it even better! Add what's missing, then press submit again. You can do it!","en")},2600)}});
+/* a fresh copy of a card for this lesson, with answer options in a new order */
+function freshCard(c){const n={...c,_src:c,_tries:0};if(c.check&&Array.isArray(c.check.options)&&c.check.options.length>1){const idx=shuffle(c.check.options.map((_,i)=>i));n.check={...c.check,options:idx.map(i=>c.check.options[i]),answer:idx.indexOf(+c.check.answer)}}return n}
+/* Chiku presents the day from her branch in the Vidya Tree */
+function presenterScript(adv,t){const p=cur()||{};const n=p.name||"friend";const tp=Object.entries(p.topics||{}).filter(([,v])=>v.at).sort((a,b)=>b[1].at-a[1].at);
+  const last=tp[0]&&SUBJECTS.map(x=>pathFor(x.id).find(y=>y.id===tp[0][0])).find(Boolean);const g=greeting();const w=wallet();const cheapest=Math.min(...GAMES.map(x=>x.cost));
+  let s=`${g}, ${n}! It's me, Chiku. `;
+  if(last&&Date.now()-tp[0][1].at<3*864e5)s+=`Last time you learned ${last.t.split(/[;:(]/)[0].trim()}. Look, your tree grew a fruit for it! `;
+  s+=adv.done?`You finished today's adventure. Shall we do another one? It's ${t.t.split(/[;:(]/)[0].trim()}. `:`Today we're going to learn ${t.t.split(/[;:(]/)[0].trim()}. Tap Start when you're ready! `;
+  s+=w>=cheapest?`And guess what? You have ${w} stars, enough to play a game!`:`Every right answer gives you a star for games.`;
+  return s}
+let presented="";
+function presentOnce(script){const key=today()+"|"+(cur()||{}).id;if(presented===key)return;
+  const go=()=>{if(presented===key||(S.tab||"home")!=="home")return;presented=key;setTimeout(()=>speak(script,"en"),350)};
+  if(CV.unlocked)go();else document.addEventListener("pointerdown",function f(){document.removeEventListener("pointerdown",f,true);go()},true)}
+/* friendly, varied words from Chiku */
+const CHEERS=["Yes! You got it!","Brilliant thinking!","Woohoo! That's right!","Super job, NAME!","Exactly right!","You're a star, NAME!"];
+const GENTLE=["Hmm, not quite. Have another look!","Nearly! Try a different one.","Good try, NAME! Look carefully and try again.","Oops! Think again, you can do it!"];
+const _nm=()=>(cur()||{}).name||"friend";
+function cheer(x){return (x&&Math.random()<.5?x:CHEERS[Math.floor(Math.random()*CHEERS.length)]).replace(/NAME/g,_nm())}
+function gentle(x){return (x&&Math.random()<.5?x:GENTLE[Math.floor(Math.random()*GENTLE.length)]).replace(/NAME/g,_nm())}
+/* remember questions already asked, so quizzes stay new */
+const normQ=q=>String(q).toLowerCase().replace(/[^\p{L}\p{N}]+/gu," ").trim();
+function seenQ(subject){const p=cur()||{};return ((p.seenQ||{})[subject]||[])}
+function rememberQ(subject,q){const p=cur();if(!p)return;const all={...(p.seenQ||{})};const list=(all[subject]||[]).filter(x=>normQ(x)!==normQ(q));list.push(String(q).slice(0,140));all[subject]=list.slice(-150);p.seenQ=all;clearTimeout(rememberQ.t);rememberQ.t=setTimeout(()=>saveProfile({seenQ:(cur()||{}).seenQ||all}),1500)}
+function quietStar(){const p=cur();if(!p)return;saveProfile({stars:(p.stars||0)+1});renderWallet();const t=$("toast");toast("+1 ⭐")}
 function showReward(n){
   const st=LP.stage,t=LP.t;if(lessonBoard){lessonBoard.destroy();lessonBoard=null}st.textContent="";
   const p=cur()||{};const have=new Set(p.stickers||[]);const pool=STICKERS.filter(s=>!have.has(s.id));const pick=shuffle((pool.length>=3?pool:STICKERS).slice()).slice(0,3);
   const r=el(`<div class="lp-reward"><div class="rw-owl">${owlSVG()}</div><h2>Amazing work!</h2>${stars3(Math.max(n,topicState(t.id).stars||0))}<p>Choose a sticker for your book.</p><div class="rw-pick"></div></div>`);
   const pk=r.querySelector(".rw-pick");pick.forEach(s=>{const b=el(`<button type="button" class="rw-st"><span>${stickerHTML(s,96)}</span><b></b></button>`);b.querySelector("b").textContent=s.name;
-    b.onclick=()=>{SFX.fanfare();celebrate(3);const list=[...(cur().stickers||[])];if(!list.includes(s.id))list.push(s.id);const upd={stickers:list};if(LP.opts&&LP.opts.adventure)upd.adv={d:today(),done:true};saveProfile(upd);
+    b.onclick=()=>{SFX.fanfare();celebrate(3);learnView=null;const list=[...(cur().stickers||[])];if(!list.includes(s.id))list.push(s.id);const upd={stickers:list};if(LP.opts&&LP.opts.adventure){const a=advState();upd.adv={d:today(),done:true,ids:[...(a.ids||[]),t.id]}}saveProfile(upd);
       speak(`You got the ${s.name} sticker!`,"en");r.querySelector(".rw-pick").innerHTML=`<div class="rw-st chosen">${stickerHTML(s,140)}<b>${esc(s.name)}</b></div>`;
       const nx=el(`<div class="tools" style="justify-content:center;margin-top:10px"><button class="btn mega" type="button">Back to my world</button><button class="btn ghost" type="button">Play a game</button></div>`);
       const [b1,b2]=nx.querySelectorAll("button");b1.onclick=()=>{learnView=null;LP=null;delete document.body.dataset.lesson;renderLearn()};b2.onclick=()=>{learnView=null;LP=null;delete document.body.dataset.lesson;switchTab("play")};r.append(nx)};pk.append(b)});
@@ -2739,7 +2811,8 @@ r8:_L("Draw yourself saying a line three times to remember it.",
 function offlineQuiz(subject,topicId,count){
   const ids=topicId?[topicId]:pathFor(subject).map(t=>t.id);let qs=[];
   ids.forEach(id=>{const L=OFFLINE_LESSONS[id];if(L)L.cards.forEach(c=>{if(c.check&&c.check.options.length>1&&c.visual.type!=="svg"&&!/this (clock|shape)|Is this cut/i.test(c.say))qs.push({q:(c.check.q||c.say)+(c.visual.type==="big"&&c.visual.text.length<40?"  "+c.visual.text.replace(/\n/g," "):""),options:c.check.options,answer:c.check.answer,explain:c.check.yes,topic:id})})});
-  for(let i=qs.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[qs[i],qs[j]]=[qs[j],qs[i]]}
+  const seen=new Set(seenQ(subject).map(normQ));const fresh=qs.filter(x=>!seen.has(normQ(x.q)));if(fresh.length>=Math.min(3,qs.length))qs=fresh;
+  qs=shuffle(qs).map(x=>{const idx=shuffle(x.options.map((_,i)=>i));return {...x,options:idx.map(i=>x.options[i]),answer:idx.indexOf(x.answer)}});
   return qs.slice(0,count||5);
 }
 
@@ -2899,9 +2972,9 @@ function renderGrown(){
   renderResources(g);
   /* settings */
   const st=el(`<div class="panel"><h3>Settings</h3><label class="field" for="setPlay">Game rounds per day<select id="setPlay"><option>2</option><option>4</option><option>6</option><option>10</option><option>20</option></select></label>
-    <div class="checks"><label for="setSound"><input type="checkbox" id="setSound"> Sound effects</label><label for="setBaby"><input type="checkbox" id="setBaby"> Chiku baby voice</label><label for="setAuto"><input type="checkbox" id="setAuto"> Chiku speaks answers aloud</label></div><button class="btn small alt" type="button" id="tryVoice">Hear Chiku's voice</button><p class="note">Chiku's voice runs on this device, so it never buffers. English voice: “Jenny (Dioco)”; Hindi and Sanskrit voice: Priyamvada. Both are free Piper neural voices. The first time, the voice takes a few seconds to download (about 30 MB).</p><button class="btn small ghost" type="button" id="lockG">Lock grown-ups area</button></div>`);
+    <div class="checks"><label for="setSound"><input type="checkbox" id="setSound"> Sound effects</label><label for="setBaby"><input type="checkbox" id="setBaby"> Little-owl voice (higher). Off = Chiku's natural, friendly voice</label><label for="setAuto"><input type="checkbox" id="setAuto"> Chiku speaks answers aloud</label></div><button class="btn small alt" type="button" id="tryVoice">Hear Chiku's voice</button><p class="note">Chiku's voice runs on this device, so it never buffers. English voice: “Jenny (Dioco)”; Hindi and Sanskrit voice: Priyamvada. Both are free Piper neural voices. The first time, the voice takes a few seconds to download (about 30 MB).</p><button class="btn small ghost" type="button" id="lockG">Lock grown-ups area</button></div>`);
   g.append(st);$("setPlay").value=String(p.playLimit||6);$("setPlay").onchange=e=>saveProfile({playLimit:+e.target.value});
-  $("setSound").checked=S.sound;$("setSound").onchange=e=>{S.sound=e.target.checked;store("vt.sound",S.sound?"1":"0")};$("setBaby").checked=VOICE.baby;$("setBaby").onchange=e=>{VOICE.baby=e.target.checked;store("vt.baby",VOICE.baby?"1":"0")};$("setAuto").checked=VOICE.auto;$("setAuto").onchange=e=>{VOICE.auto=e.target.checked;store("vt.auto",VOICE.auto?"1":"0")};$("tryVoice").onclick=()=>Buddy.say("Hello! I am Chiku. Let's learn together!","en");
+  $("setSound").checked=S.sound;$("setSound").onchange=e=>{S.sound=e.target.checked;store("vt.sound",S.sound?"1":"0")};$("setBaby").checked=VOICE.baby;$("setBaby").onchange=e=>{VOICE.baby=e.target.checked;hush();speak("Hello! This is how I sound now.","en")};$("setAuto").checked=VOICE.auto;$("setAuto").onchange=e=>{VOICE.auto=e.target.checked;store("vt.auto",VOICE.auto?"1":"0")};$("tryVoice").onclick=()=>Buddy.say("Hello! I am Chiku. Let's learn together!","en");
   $("lockG").onclick=()=>{S.grownOk=false;renderGrown()};
 }
 function shrink(file){return new Promise((res,rej)=>{const im=new Image();const u=URL.createObjectURL(file);im.onload=()=>{const m=1600,k=Math.min(1,m/Math.max(im.width,im.height));const c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>b?res(b):rej(),"image/jpeg",.86)};im.onerror=rej;im.src=u})}
@@ -2977,8 +3050,8 @@ async function selfCheck(subject,t,typed,drew){
   const n=look.length?(ticked>=look.length?3:ticked>=Math.ceil(look.length/2)?2:1):(drew&&typed?3:2);out.innerHTML="";
   const fb=el(`<div class="fb">${shot?`<img class="workshot" alt="My work" src="${shot}">`:""}${typed?`<p></p>`:""}<div>${stars3(n)}</div><strong></strong><p class="note" style="margin-top:4px"></p></div>`);
   if(typed)fb.querySelector("p").textContent=typed;fb.querySelector("strong").textContent=n===3?"You did every step! Wonderful work!":"Good work! You did "+ticked+" of "+look.length+" things.";
-  fb.querySelector(".note").textContent=n===3?"Show it to a grown-up and tell them about it.":"Look at the boxes you didn't tick. Can you add them? Then press Submit again.";out.append(fb);
-  const d=setTopicStars(t.id,n);refreshLessonStars(t.id);if(d)earn(d,"Great work!");else SFX.ding();Buddy.happy();
+  fb.querySelector(".note").textContent=n===3?"Show it to a grown-up and tell them about it.":"Add the things you didn't tick, tick them, then press Submit again.";out.append(fb);
+  setTopicStars(t.id,n);refreshLessonStars(t.id);SFX.ding();Buddy.happy();
   hush();queueSpeech(fb.querySelector("strong").textContent+" "+fb.querySelector(".note").textContent,"en");
   if(drew&&S.pid)saveWork(t,"My own work");
   document.dispatchEvent(new CustomEvent("work-checked",{detail:{n,topic:t.id}}));
@@ -3092,7 +3165,7 @@ S.sound=store("vt.sound")!=="0";
 document.addEventListener("pointerdown",()=>SFX.init(),{once:true});
 
 /* boot */
-Buddy.mount();renderSims();renderQuick();renderAskSubjects();renderChatWelcome();renderLearnerSel();renderWallet();renderHome();
+document.body.dataset.tab=S.tab||"home";Buddy.mount();renderSims();renderQuick();renderAskSubjects();renderChatWelcome();renderLearnerSel();renderWallet();renderHome();
 (async()=>{
   const c=window.claude;
   const [db,sample,assets]=APP?[LocalDB,null,LocalAssets]:await Promise.all(["db","sample","assets"].map(n=>c?c.use(n).catch(()=>null):Promise.resolve(null)));

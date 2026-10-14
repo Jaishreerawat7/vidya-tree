@@ -54,7 +54,7 @@ async function load(lang) {
   sessions[lang].catch(() => { delete sessions[lang]; });
   return sessions[lang];
 }
-async function synth(text, lang, lengthScale) {
+async function synth(text, lang, lengthScale, noise) {
   const session = await load(lang);
   const out = await phonemize(text, VOICES[lang].espeak);
   if (!out || !out.phoneme_ids || !out.phoneme_ids.length) return null;
@@ -63,7 +63,7 @@ async function synth(text, lang, lengthScale) {
   const r = await session.run({
     input: new ort.Tensor("int64", BigInt64Array.from(ids.map(BigInt)), [1, ids.length]),
     input_lengths: new ort.Tensor("int64", BigInt64Array.from([BigInt(ids.length)]), [1]),
-    scales: new ort.Tensor("float32", Float32Array.from([cfg.noise_scale ?? 0.667, lengthScale, cfg.noise_w ?? 0.8]), [3]),
+    scales: new ort.Tensor("float32", Float32Array.from([(noise && noise[0]) ?? cfg.noise_scale ?? 0.667, lengthScale, (noise && noise[1]) ?? cfg.noise_w ?? 0.8]), [3]),
   });
   return new Float32Array(r.output.data);
 }
@@ -72,7 +72,7 @@ self.onmessage = async ({ data }) => {
   try {
     if (type === "load") { await load(data.lang); await getPhon(); self.postMessage({ id, ok: true }); return; }
     if (type === "speak") {
-      const audio = await synth(data.text, data.lang, data.lengthScale || 1);
+      const audio = await synth(data.text, data.lang, data.lengthScale || 1, data.noise);
       if (!audio) { self.postMessage({ id, ok: false }); return; }
       self.postMessage({ id, ok: true, audio, sr: 22050 }, [audio.buffer]);
     }
