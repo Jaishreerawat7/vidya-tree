@@ -534,6 +534,23 @@ main>section:not([hidden]){animation:enter .32s cubic-bezier(.2,.8,.2,1)}
 .lp-load{justify-items:center;text-align:center;padding:40px 16px}.lp-load svg{width:120px;height:120px;animation:bob 1.2s ease-in-out infinite}.lp-load p{font-family:var(--display);font-size:22px;font-weight:700}
 .dots3{display:flex;gap:8px}.dots3 i{width:12px;height:12px;border-radius:50%;background:var(--c,var(--leaf));animation:dot 1s infinite}.dots3 i:nth-child(2){animation-delay:.15s}.dots3 i:nth-child(3){animation-delay:.3s}
 @keyframes dot{50%{transform:translateY(-8px);opacity:.5}}
+.scaf{display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:760px){.scaf{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);align-items:start}}
+.scaf-steps ol{list-style:none;display:grid;gap:8px;margin-top:6px}
+.scaf-steps li{display:flex;gap:10px;align-items:center;background:var(--surface-2);border-radius:16px;padding:8px 12px;font-size:18px;font-weight:600;cursor:pointer;min-height:52px}
+.scaf-steps li .sn{flex:none;width:36px;height:36px;border-radius:50%;border:0;background:var(--c,#2E7D4F);color:#fff;font:800 18px var(--display);display:grid;place-items:center}
+.scaf-steps li.done{opacity:.75}.scaf-steps li.done .sn{background:#F2A900}
+.scaf-ex .ex-show{width:100%;min-height:56px;font-size:18px}
+.ex-wrap{display:grid;gap:8px;background:#FFFDF8;border:2px dashed var(--line);border-radius:18px;padding:10px}
+.ex-img svg{width:100%;height:auto;max-height:260px;display:block}
+.lookfor{display:grid;gap:6px}.lookfor.pulse{animation:lfp .6s 3}
+@keyframes lfp{50%{transform:scale(1.02);box-shadow:0 0 0 6px rgba(242,169,0,.35);border-radius:18px}}
+.lf-list{display:flex;flex-wrap:wrap;gap:8px}
+.lf{display:flex;align-items:center;gap:10px;border:2px solid var(--line);background:var(--surface);border-radius:16px;padding:10px 14px;font:600 17px var(--body);color:var(--ink);min-height:52px;text-align:left}
+.lf i{width:26px;height:26px;border-radius:8px;border:2.5px solid #6E7F73;flex:none;display:grid;place-items:center;font-style:normal}
+.lf[aria-pressed="true"]{border-color:#2E7D4F;background:#E5F4E8}.lf[aria-pressed="true"] i{background:#2E7D4F;border-color:#2E7D4F}.lf[aria-pressed="true"] i:after{content:"✓";color:#fff;font-weight:900}
+.lf.miss{border-color:#F2A900;background:#FFF6DD}
+.fb .seen{background:#EEF6FF;border-radius:12px;padding:8px 10px;margin:6px 0}
 .lp-turn-head{display:flex;gap:10px;align-items:center}.lp-turn-head>div{flex:1}
 .mini-owl svg{width:64px;height:64px}
 .typed summary{cursor:pointer;font-weight:700;color:var(--muted)}
@@ -1237,7 +1254,7 @@ function Board(host,{guide="lines",ratio=.62,max=520,task="",onSubmit=null,submi
   const top=el(`<div class="board-top" hidden><div><span class="note" style="font-weight:800;text-transform:uppercase;letter-spacing:.08em">Your turn</span><p class="board-task"></p></div><button class="btn alt small" type="button">Listen</button></div>`);
   top.querySelector(".board-task").textContent=task;top.querySelector("button").onclick=e=>speak(task,"en",e.target);
   const bar=el(`<div class="board-bar" role="toolbar" aria-label="Drawing tools"></div>`);
-  let col=COLS[0],size=7,erase=false,strokes=[],curS=null,g=guide,full=false;
+  let col=COLS[0],size=7,erase=false,strokes=[],curS=null,g=guide,full=false,traceImg=null,traceOn=false;
   COLS.forEach((c,i)=>{const b=el(`<button class="sw" type="button" aria-label="Colour ${i+1}" aria-pressed="${i===0}"></button>`);b.style.background=c;b.dataset.c=c;b.onclick=()=>{col=c;erase=false;sync()};bar.append(b)});
   bar.append(el(`<span class="sep"></span>`));
   const sizes=[["Thin",3],["Medium",7],["Thick",14]].map(([n,v])=>{const b=el(`<button class="chip" type="button" aria-pressed="${v===7}">${n}</button>`);b.onclick=()=>{size=v;sync()};bar.append(b);return [b,v]});
@@ -1265,7 +1282,8 @@ function Board(host,{guide="lines",ratio=.62,max=520,task="",onSubmit=null,submi
     if(p.length>1){const l=p[p.length-1];c.lineTo(l[0]*u,l[1]*u)}c.stroke()}
   function ink(w,h,u,scale){const k=document.createElement("canvas");k.width=w*scale;k.height=h*scale;const ic=k.getContext("2d");ic.setTransform(scale,0,0,scale,0,0);
     for(const s of strokes){if(s.e){ic.globalCompositeOperation="destination-out";stroke(ic,{...s,c:"#000"},u);ic.globalCompositeOperation="source-over"}else stroke(ic,s,u)}return k}
-  function draw(){paper(ctx,W,H,W);const d=cv.width/W;const k=ink(W,H,W,d);ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.drawImage(k,0,0);ctx.restore()}
+  function drawTrace(c,w,h){if(!traceOn||!traceImg||!traceImg.complete||!traceImg.naturalWidth)return;const iw=traceImg.naturalWidth,ih=traceImg.naturalHeight,k=Math.min(w*.92/iw,h*.92/ih);c.save();c.globalAlpha=.2;c.drawImage(traceImg,(w-iw*k)/2,(h-ih*k)/2,iw*k,ih*k);c.restore()}
+  function draw(){paper(ctx,W,H,W);drawTrace(ctx,W,H);const d=cv.width/W;const k=ink(W,H,W,d);ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.drawImage(k,0,0);ctx.restore()}
   const pt=e=>{const r=cv.getBoundingClientRect();return [(e.clientX-r.left)/r.width,((e.clientY-r.top)/r.height)*(H/W)]};
   cv.addEventListener("pointerdown",e=>{e.preventDefault();cv.setPointerCapture(e.pointerId);curS={c:col,w:erase?size*3:size,e:erase,p:[pt(e)]};strokes.push(curS);draw()});
   cv.addEventListener("pointermove",e=>{if(!curS)return;const evs=e.getCoalescedEvents?e.getCoalescedEvents():[e];evs.forEach(ev=>curS.p.push(pt(ev)));draw()});
@@ -1277,9 +1295,16 @@ function Board(host,{guide="lines",ratio=.62,max=520,task="",onSubmit=null,submi
     requestAnimationFrame(fit)}
   document.addEventListener("fullscreenchange",()=>{if(!document.fullscreenElement&&full){/* user left browser full screen; keep in-page big board */fit()}});
   const ro=new ResizeObserver(()=>fit());ro.observe(hold);fit();
-  return {setTask:x=>{task=x;top.querySelector(".board-task").textContent=x},el:wrap,isEmpty:()=>!strokes.some(s=>!s.e),clear:()=>{strokes=[];draw()},destroy:()=>{ro.disconnect();if(full)setFull(false)},open:()=>setFull(true),
-    toBlob:()=>new Promise(res=>{let maxY=H/W;strokes.forEach(s=>s.p.forEach(p=>{if(p[1]+.04>maxY)maxY=p[1]+.04}));const OW=1200,OH=Math.round(OW*maxY);
-      const o=document.createElement("canvas");o.width=OW;o.height=OH;const c=o.getContext("2d");paper(c,OW,OH,OW);c.drawImage(ink(OW,OH,OW,1),0,0);o.toBlob(b=>res(b),"image/png")})};
+  /* a compact text version of the drawing (for when Chiku can't receive pictures): one SVG path per stroke, 0–1000 units */
+  function toSVG(){const Hn=Math.max(H/W,...strokes.flatMap(s=>s.p.map(p=>p[1]+.02)));let out=[];
+    for(const s of strokes){if(s.e||!s.p.length)continue;const pts=[];let last=null;for(const p of s.p){const q=[Math.round(p[0]*1000),Math.round(p[1]*1000)];if(!last||Math.hypot(q[0]-last[0],q[1]-last[1])>=9){pts.push(q);last=q}}
+      const lp=s.p[s.p.length-1];pts.push([Math.round(lp[0]*1000),Math.round(lp[1]*1000)]);out.push(`<path stroke="${s.c}" d="M${pts.map(q=>q.join(" ")).join(" L")}"/>`)}
+    return `<svg viewBox="0 0 1000 ${Math.round(Hn*1000)}">${out.join("")}</svg>`}
+  return {toSVG,setTrace:(svg)=>{if(!svg){traceImg=null;traceOn=false;draw();return}traceImg=new Image();traceImg.onload=()=>draw();traceImg.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg.includes("xmlns")?svg:svg.replace("<svg ",'<svg xmlns="http://www.w3.org/2000/svg" '))},
+    trace:(on)=>{traceOn=on===undefined?!traceOn:!!on;draw();return traceOn},hasTrace:()=>!!traceImg,
+    setTask:x=>{task=x;top.querySelector(".board-task").textContent=x},el:wrap,isEmpty:()=>!strokes.some(s=>!s.e),clear:()=>{strokes=[];draw()},destroy:()=>{ro.disconnect();if(full)setFull(false)},open:()=>setFull(true),
+    toBlob:(type)=>new Promise(res=>{let maxY=H/W;strokes.forEach(s=>s.p.forEach(p=>{if(p[1]+.04>maxY)maxY=p[1]+.04}));const OW=1200,OH=Math.round(OW*maxY);
+      const o=document.createElement("canvas");o.width=OW;o.height=OH;const c=o.getContext("2d");paper(c,OW,OH,OW);c.drawImage(ink(OW,OH,OW,1),0,0);if(type==="image/jpeg"){c.globalCompositeOperation="destination-over";c.fillStyle="#fff";c.fillRect(0,0,OW,OH)}o.toBlob(b=>res(b),type||"image/png",.9)})};
 }
 
 /* ================= HOME ================= */
@@ -1442,18 +1467,25 @@ async function checkWork(subject,t){
   const out=$("checkOut"),btn=$("checkBtn");const typed=$("typedAns").value.trim();const drew=lessonBoard&&!lessonBoard.isEmpty();
   if(!typed&&!drew){out.innerHTML=`<div class="fb">Draw or write your answer first, then tap Check my work.</div>`;return}
   if(!S.sample){selfCheck(subject,t,typed,drew);return}
-  const canSee=!!(S.limits&&S.limits.images);
-  if(drew&&!canSee&&!typed){out.innerHTML=`<div class="fb">Chiku can't look at drawings in this view. Type a few words about your drawing, then check again.</div>`;return}
+  try{S.limits=await S.sample.limits()}catch(e){}
+  const imgL=S.limits&&S.limits.images;let canSee=!!imgL;
   btn.disabled=true;const shot=drew?URL.createObjectURL(await lessonBoard.toBlob()):null;out.innerHTML=`<div class="fb"><strong>Your work</strong>${shot?`<img class="workshot" alt="My work" src="${shot}">`:""}${typed?`<p>${esc(typed)}</p>`:""}<p class="thinking">Chiku is looking at your work…</p></div>`;out.scrollIntoView({behavior:"smooth",block:"start"});Buddy.think(true);speak("Ooh, let me look at your work!","en");
   const L=(LANG[S.lang]||LANG.en).name;const opts={cache:false,modelTier:"default"};
-  let blob=null;if(drew&&canSee){blob=await lessonBoard.toBlob();opts.images=blob}
+  const look=(LP&&LP.sc&&LP.sc.look)||[];
+  const ask=async(useImg)=>{let blob=null,svg="";delete opts.images;
+    if(drew&&useImg){const mt=!imgL.mediaTypes||imgL.mediaTypes.includes("image/png")?"image/png":"image/jpeg";blob=await lessonBoard.toBlob(mt);opts.images=blob}
+    else if(drew){svg=lessonBoard.toSVG();if(svg.length>30000)svg=svg.slice(0,30000)+"…"}
+    const how=blob?"The image is the learner's own drawing/handwriting on a drawing board (it may be messy — they are a child)."
+      :svg?`The learner drew on a drawing board. You cannot see a picture in this view, so here is the drawing as pen strokes in SVG (x 0-1000 left to right, y downwards, each path is one stroke with its colour). Picture the shapes from their positions, sizes and colours; handwriting is strokes too:\n${svg}`:"No drawing was attached.";
+    return S.sample.json(`${learnerBrief()}\nSubject: ${SUBJ[subject].name}. Topic: ${t.t}. Activity: "${($("yourTask")||{}).textContent||t.task}".\n${how}\nTyped answer: "${typed||"(none)"}".\n${look.length?`Success checklist: ${look.map((x,i)=>`${i+1}) ${x}`).join(" ")}\n`:""}Judge kindly, honestly and accurately for their age. Look for what they got right first.\nReply only JSON in ${L}: {"seen":"one short sentence describing exactly what you can see in their work, so the child knows you really looked (e.g. I can see a tall green stem and three pink petals)","found":[${look.length?"true or false for each checklist item, in order":""}],"stars":1|2|3,"praise":"one specific praise sentence about their work","feedback":"1-2 short sentences: what is correct and one gentle fix if needed","next":"one tiny next step"}. 3 = activity fully done and correct, 2 = mostly right, 1 = a good try. Never 0.`,opts)};
   try{
-    const r=await S.sample.json(`${learnerBrief()}\nSubject: ${SUBJ[subject].name}. Topic: ${t.t}. Activity: "${($("yourTask")||{}).textContent||t.task}".\n${blob?"The image is the learner's own drawing/handwriting on a drawing board (it may be messy — they are a child).":"No drawing was attached."}\nTyped answer: "${typed||"(none)"}".\nJudge kindly, honestly and accurately for their age. Look for what they got right first.\nReply only JSON in ${L}: {"stars":1|2|3,"praise":"one specific praise sentence about their work","feedback":"1-2 short sentences: what is correct and one gentle fix if needed","next":"one tiny next step"}. 3 = activity fully done and correct, 2 = mostly right, 1 = a good try. Never 0.`,opts);
+    let r;try{r=await ask(canSee)}catch(e){if(canSee&&e&&(e.code==="images_unavailable"||e.code==="image_rejected")){canSee=false;r=await ask(false)}else throw e}
     const n=Math.max(1,Math.min(3,Math.round(+r.stars||1)));
     Buddy.think(false);out.innerHTML="";const fb=el(`<div class="fb">${shot?`<img class="workshot" alt="My work" src="${shot}">`:""}<div>${stars3(n)}</div><strong></strong><p style="margin-top:4px"></p><p class="note" style="margin-top:4px"></p><div class="tools" style="margin-top:8px"><button class="btn alt small" type="button">Listen</button></div></div>`);
-    fb.querySelector("strong").textContent=r.praise||"Well done!";fb.querySelector("p").textContent=r.feedback||"";fb.querySelector(".note").textContent=r.next?("Next: "+r.next):"";
-    fb.querySelector("button").onclick=e=>speak(`${r.praise||""} ${r.feedback||""} ${r.next||""}`,S.lang,e.target);out.append(fb);
-    const d=setTopicStars(t.id,n);refreshLessonStars(t.id);if(d)earn(d,"Great work!");else SFX.ding();document.dispatchEvent(new CustomEvent("work-checked",{detail:{n,topic:t.id}}));Buddy.happy();if(VOICE.auto){hush();queueSpeech(`${r.praise||""} ${r.feedback||""} ${r.next||""}`,S.lang)}
+    if(r.seen){const sn=el(`<p class="seen">👀 <b>Chiku sees:</b> <span></span></p>`);sn.querySelector("span").textContent=r.seen;fb.insertBefore(sn,fb.querySelector("strong"))}markLookFor(r.found);
+    fb.querySelector("strong").textContent=r.praise||"Well done!";fb.querySelector("p:not(.seen)").textContent=r.feedback||"";fb.querySelector(".note").textContent=r.next?("Next: "+r.next):"";
+    fb.querySelector(".tools button").onclick=e=>speak(`${r.seen||""} ${r.praise||""} ${r.feedback||""} ${r.next||""}`,S.lang,e.target);out.append(fb);
+    const d=setTopicStars(t.id,n);refreshLessonStars(t.id);if(d)earn(d,"Great work!");else SFX.ding();document.dispatchEvent(new CustomEvent("work-checked",{detail:{n,topic:t.id}}));Buddy.happy();if(VOICE.auto){hush();queueSpeech(`${r.seen||""} ${r.praise||""} ${r.feedback||""} ${r.next||""}`,S.lang)}
     $("saveWork").onclick=()=>saveWork(t,(r.praise||"")+" "+(r.feedback||""));
   }catch(e){Buddy.think(false);out.append(el(`<div class="fb">${esc(aiErr(e)||"Stopped.")}</div>`))}finally{btn.disabled=false}
 }
@@ -2172,13 +2204,13 @@ function openLesson(subject,topicId,opts={}){
 function lpProgress(){const total=Math.max(LP.cards.length,6)+1;const b=document.querySelector(".lp-prog i");if(b)b.style.width=Math.round((LP.i+1)/total*100)+"%"}
 async function loadCards(subject,t){
   const key=`${t.id}-${S.lang}-cards`.replace(/[^A-Za-z0-9_.~:@+-]/g,"_");const pid=S.pid;const myLP=LP;
-  const useCards=(cards,turn)=>{if(LP!==myLP)return;LP.cards=cards;if(turn)LP.turn=turn;Buddy.think(false);if(!LP.shown){LP.shown=true;LP.i=0;showCard()}else lpProgress()};
-  if(S.lessons[pid+key]){const c=S.lessons[pid+key];myLP.loaded=true;return useCards(c.cards,c.turn)}
-  if(S.db&&pid){try{const d=await S.db.doc(`profiles/${pid}/lessons/${key}`).get();if(d.exists){const v=JSON.parse(d.data().json);S.lessons[pid+key]=v;myLP.loaded=true;return useCards(v.cards,v.turn)}}catch(e){}}
+  const useCards=(cards,turn,scaf)=>{if(LP!==myLP)return;LP.cards=cards;if(turn)LP.turn=turn;if(scaf)LP.scaf=scaf;Buddy.think(false);if(!LP.shown){LP.shown=true;LP.i=0;showCard()}else lpProgress()};
+  if(S.lessons[pid+key]){const c=S.lessons[pid+key];myLP.loaded=true;return useCards(c.cards,c.turn,c.scaf)}
+  if(S.db&&pid){try{const d=await S.db.doc(`profiles/${pid}/lessons/${key}`).get();if(d.exists){const v=JSON.parse(d.data().json);S.lessons[pid+key]=v;myLP.loaded=true;return useCards(v.cards,v.turn,v.scaf)}}catch(e){}}
   if(!S.sample&&typeof OFFLINE_LESSONS!=="undefined"&&OFFLINE_LESSONS[t.id]){const v=OFFLINE_LESSONS[t.id];myLP.loaded=true;return useCards(v.cards,v.turn)}
   if(!S.sample){Buddy.think(false);LP.cards=offlineCards(t);LP.loaded=true;LP.shown=true;showCard();return}
-  const ctl=new AbortController();lessonCtl=ctl;let pending="",cards=[],turn=null;
-  const eat=(chunk,final)=>{const lines=(pending+chunk).split("\n");pending=final?"":lines.pop();for(const line of (final?lines.concat(pending?[pending]:[]):lines)){const s=line.trim().replace(/^```(json)?|```$/g,"");if(!s.startsWith("{"))continue;try{const o=JSON.parse(s);if(o.turn&&!o.say){turn=o.turn;continue}if(o.say){cards.push(o);useCards(cards.slice(),turn)}}catch(e){}}};
+  const ctl=new AbortController();lessonCtl=ctl;let pending="",cards=[],turn=null,scaf=null;
+  const eat=(chunk,final)=>{const lines=(pending+chunk).split("\n");pending=final?"":lines.pop();for(const line of (final?lines.concat(pending?[pending]:[]):lines)){const s=line.trim().replace(/^```(json)?|```$/g,"");if(!s.startsWith("{"))continue;try{const o=JSON.parse(s);if(o.turn&&!o.say){turn=o.turn;scaf={steps:o.steps,look_for:o.look_for,example:o.example};continue}if(o.say){cards.push(o);useCards(cards.slice(),turn)}}catch(e){}}};
   try{
     const r=await S.sample(`${learnerBrief()}
 You are Chiku, a friendly owl who presents short, joyful lessons to children, like a children's TV presenter. Reply language: ${(LANG[S.lang]||LANG.en).name}${["hindi","sanskrit","rigveda"].includes(subject)?" (always write Hindi/Sanskrit words in Devanagari; for an English reply add a simple meaning)":""}.
@@ -2187,11 +2219,11 @@ Write 7 cards, ONE JSON object per line (no other text, no code fences). Each ca
 {"say":"what Chiku says aloud: 1-2 short sentences, at most ${age()<=7?"22":"35"} words, warm and simple","visual":VISUAL,"check":null or {"q":"a question Chiku asks aloud","options":["2-4 very short options (numbers, single words, or a symbol)"],"answer":INDEX,"yes":"short praise","no":"short gentle hint"}}
 VISUAL is one of: {"type":"svg","svg":"<svg viewBox='0 0 320 220' xmlns='http://www.w3.org/2000/svg'>…</svg>"} (bright flat colours, chunky shapes, big labels font-size 18+, may use SMIL <animate> to show the idea moving; no scripts, no <image>, no links) — or {"type":"photo","title":"one of: ${photoList()}"} — or {"type":"big","text":"a few big characters, e.g. 3 + 2 = 5, or अ"}.
 Plan: card 1 = a hook from the child's real life (UAE home, Indian heritage); cards 2-5 teach ONE idea in small steps with a worked example; cards 3, 5 and 7 have a "check"; card 7 is a fun recap check. Every card must have a visual. Accuracy first; child-safe.
-Then a final line: {"turn":"one drawing or writing activity for the drawing board that practises this exact topic"}`,
+Then a final line: {"turn":"one drawing or writing activity for the drawing board that practises this exact topic, simple enough for this child","steps":["3 tiny steps telling the child exactly what to draw or write, in order"],"look_for":["2-3 things a grown-up can see in a finished drawing, each starting with I (e.g. I drew roots under the soil)"],"example":{"type":"svg","svg":"<svg viewBox='0 0 320 220' xmlns='http://www.w3.org/2000/svg'>a simple, clear model answer drawing for this activity with big labels</svg>"}}`,
       {signal:ctl.signal,cache:false,modelTier:"default",onText:({delta})=>eat(delta,false)});
     eat("",true);
     if(!cards.length)throw {code:"invalid_json"};
-    const v={cards,turn:turn||t.task};S.lessons[pid+key]=v;useCards(cards,v.turn);LP.loaded=true;
+    const v={cards,turn:turn||t.task,scaf};S.lessons[pid+key]=v;useCards(cards,v.turn,scaf);LP.loaded=true;
     LP.loaded=true;lpProgress();if(LP.i===LP.cards.length-1){const nb=$("lpNext");if(nb)nb.firstChild.textContent="Your turn "}
     if(S.db&&pid)S.db.doc(`profiles/${pid}/lessons/${key}`).set({json:JSON.stringify(v),date:Date.now()}).catch(()=>{});
   }catch(e){if(LP!==myLP)return;Buddy.think(false);LP.loaded=true;if(!cards.length){const m=aiErr(e);LP.cards=offlineCards(t);LP.loaded=true;LP.shown=true;showCard();if(m)toast(m)}}
@@ -2242,17 +2274,34 @@ addEventListener("chiku-say",e=>{const {text,audio}=e.detail||{};const root=docu
 function showTurn(){
   const st=LP.stage,t=LP.t;st.textContent="";lpProgress();document.querySelector(".lp-nav").hidden=true;
   const yc=el(`<div class="lp-turn"><div class="lp-turn-head"><span class="mini-owl">${owlSVG()}</span><div><span class="note" style="font-weight:800;letter-spacing:.08em;text-transform:uppercase">Your turn</span><p class="board-task" id="yourTask"></p></div><button class="iconbtn speak" type="button" aria-label="Hear it"><svg viewBox="0 0 24 24" width="28" height="28"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8a5 5 0 0 1 0 8" stroke="currentColor" stroke-width="2" fill="none"/></svg></button></div>
+     <div class="scaf" id="scaf"></div>
      <div id="boardHost"></div>
+     <div class="lookfor" id="lookFor" hidden><span class="note" style="font-weight:800;letter-spacing:.06em;text-transform:uppercase">Did I…? Tap to tick</span><div class="lf-list"></div></div>
      <details class="typed"><summary>Or type your answer</summary><textarea id="typedAns" rows="2" placeholder="Type here"></textarea></details>
      <div class="tools"><button class="btn mega" type="button" id="checkBtn">✓ Submit my work</button><button class="btn ghost" type="button" id="saveWork">Save to my book</button><button class="btn ghost" type="button" id="skipTurn">Skip</button></div>
      <div id="checkOut"></div></div>`);
   st.append(yc);$("yourTask").textContent=LP.turn||t.task;
   yc.querySelector(".lp-turn-head .iconbtn").onclick=()=>speak($("yourTask").textContent,"en");
   lessonBoard=Board($("boardHost"),{guide:SUBJ[LP.subject].guide,ratio:.75,max:620,task:$("yourTask").textContent,onSubmit:()=>checkWork(LP.subject,t)});
+  renderScaffold(scaffoldFor(t,LP.scaf,$("yourTask").textContent));
   $("checkBtn").onclick=()=>checkWork(LP.subject,t);$("saveWork").onclick=()=>saveWork(t,null);
   $("skipTurn").onclick=()=>{const d=setTopicStars(t.id,1);if(d)earn(d,"Lesson done!");showReward(1)};
   hush();queueSpeech("Your turn! "+$("yourTask").textContent,"en");
 }
+function renderScaffold(sc){LP.sc=sc;const box=$("scaf");box.textContent="";
+  const steps=el(`<div class="scaf-steps"><span class="note" style="font-weight:800;letter-spacing:.06em;text-transform:uppercase">Steps</span><ol></ol></div>`);
+  sc.steps.forEach((x,i)=>{const li=el(`<li><button type="button" class="sn" aria-label="Hear step ${i+1}">${i+1}</button><span></span></li>`);li.querySelector("span").textContent=x;li.onclick=()=>{li.classList.add("done");speak(x,/[ऀ-ॿ]/.test(x)?"hi":"en")};steps.querySelector("ol").append(li)});
+  box.append(steps);
+  if(sc.ex){const ex=el(`<div class="scaf-ex"><button type="button" class="btn alt ex-show">👀 Show me an example</button><div class="ex-wrap" hidden><div class="ex-img"></div><div class="tools"><button type="button" class="btn small" id="exTrace">✏️ Trace it on my board</button><button type="button" class="btn small ghost ex-hide">Hide</button></div><p class="note">Chiku's example. Yours can be different!</p></div></div>`);
+    ex.querySelector(".ex-img").innerHTML=sc.ex;const w=ex.querySelector(".ex-wrap"),sb=ex.querySelector(".ex-show");
+    sb.onclick=()=>{w.hidden=false;sb.hidden=true;speak("Here is my example. You can trace it, or make your own!","en")};ex.querySelector(".ex-hide").onclick=()=>{w.hidden=true;sb.hidden=false};
+    lessonBoard.setTrace(sc.ex);const tb=ex.querySelector("#exTrace");tb.onclick=()=>{const on=lessonBoard.trace();tb.textContent=on?"✖ Stop tracing":"✏️ Trace it on my board";if(on)$("boardHost").scrollIntoView({behavior:"smooth",block:"center"})};
+    box.append(ex)}
+  const lf=$("lookFor"),list=lf.querySelector(".lf-list");list.textContent="";
+  if(sc.look&&sc.look.length){lf.hidden=false;sc.look.forEach(x=>{const b=el(`<button type="button" class="lf" aria-pressed="false"><i></i><span></span></button>`);b.querySelector("span").textContent=x;b.onclick=()=>{const on=b.getAttribute("aria-pressed")!=="true";b.setAttribute("aria-pressed",String(on));if(on){SFX.ding();speak(x,/[ऀ-ॿ]/.test(x)?"hi":"en")}};list.append(b)})}
+}
+function markLookFor(found){if(!Array.isArray(found))return;document.querySelectorAll("#lookFor .lf").forEach((b,i)=>{if(found[i]===true)b.setAttribute("aria-pressed","true");b.classList.toggle("miss",found[i]===false)})}
+function lookTicked(){return [...document.querySelectorAll("#lookFor .lf")].filter(b=>b.getAttribute("aria-pressed")==="true").length}
 document.addEventListener("work-checked",e=>{if(!LP||!document.querySelector(".lp-turn"))return;const n=(e.detail||{}).n||1;
   const go=el(`<button class="btn mega alt" type="button" style="margin-top:12px">Collect my sticker</button>`);go.onclick=()=>showReward(n);$("checkOut").append(go);go.scrollIntoView({behavior:"smooth",block:"center"})});
 function showReward(n){
@@ -2694,6 +2743,107 @@ function offlineQuiz(subject,topicId,count){
   return qs.slice(0,count||5);
 }
 
+/* ================= "YOUR TURN" SCAFFOLDS =================
+   For every built-in task: 3 small steps, a "Did I…?" checklist, and Chiku's example picture (SVG, also used as a faint tracing layer). */
+const _F='font-family="Andika,Baloo 2,sans-serif"';
+/* grid of [big, caption] pairs, e.g. emoji + label */
+function exGrid(items,cols){cols=cols||Math.min(items.length,5);const rows=Math.ceil(items.length/cols),cw=320/cols,ch=Math.min(110,220/rows);
+  return `<svg viewBox="0 0 320 ${Math.round(rows*ch+10)}" xmlns="http://www.w3.org/2000/svg">${items.map(([b,c],i)=>{const x=(i%cols)*cw+cw/2,y=Math.floor(i/cols)*ch;
+    return `<text x="${x}" y="${y+ch*.55}" font-size="${Math.min(46,ch*.48)}" text-anchor="middle" ${_F}>${esc(b)}</text>${c?`<text x="${x}" y="${y+ch*.88}" font-size="${Math.min(17,ch*.17)}" font-weight="700" fill="#2B3B31" text-anchor="middle" ${_F}>${esc(c)}</text>`:""}`}).join("")}</svg>`}
+const lab=(x,y,t,ax,ay)=>`<line x1="${ax}" y1="${ay}" x2="${x+(x<160?50:-6)}" y2="${y-6}" stroke="#6E7F73" stroke-width="2"/><text x="${x}" y="${y}" font-size="17" font-weight="700" fill="#1D2A22" ${_F}>${t}</text>`;
+const EX={
+ plant:`<svg viewBox="0 0 320 260" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="185" width="320" height="75" fill="#C9A27A"/><path d="M160 190 L160 80" stroke="#2E7D4F" stroke-width="7"/><path d="M160 140 q-40 -10 -52 -34 q34 0 52 26z" fill="#4CAF50"/><path d="M160 120 q40 -10 52 -34 q-34 0 -52 26z" fill="#4CAF50"/>${[0,72,144,216,288].map(a=>`<ellipse cx="160" cy="58" rx="13" ry="24" fill="#EC4899" transform="rotate(${a} 160 78)"/>`).join("")}<circle cx="160" cy="78" r="12" fill="#F2A900"/><path d="M160 190 q-10 25 -30 40 M160 190 q2 30 0 50 M160 190 q12 22 32 36" stroke="#7A4A2A" stroke-width="4" fill="none"/>${lab(222,40,"flower",172,70)}${lab(232,110,"leaf",206,94)}${lab(30,150,"stem",157,150)}${lab(222,235,"roots",186,222)}</svg>`,
+ face:`<svg viewBox="0 0 320 260" xmlns="http://www.w3.org/2000/svg"><ellipse cx="160" cy="130" rx="78" ry="96" fill="#F3D2B3" stroke="#7A5A3A" stroke-width="3"/><ellipse cx="80" cy="135" rx="12" ry="22" fill="#F3D2B3" stroke="#7A5A3A" stroke-width="3"/><ellipse cx="240" cy="135" rx="12" ry="22" fill="#F3D2B3" stroke="#7A5A3A" stroke-width="3"/><circle cx="130" cy="112" r="9" fill="#1D2A22"/><circle cx="190" cy="112" r="9" fill="#1D2A22"/><path d="M160 122 l-9 30 h18z" fill="#E7B48F"/><path d="M132 178 q28 22 56 0" stroke="#C0392B" stroke-width="5" fill="none"/>${lab(8,40,"नेत्रम् eye",126,104)}${lab(250,60,"कर्णः ear",244,118)}${lab(232,175,"नासिका nose",170,148)}</svg>`,
+ body:`<svg viewBox="0 0 320 260" xmlns="http://www.w3.org/2000/svg"><circle cx="160" cy="48" r="30" fill="#F3D2B3" stroke="#7A5A3A" stroke-width="3"/><circle cx="150" cy="44" r="4"/><circle cx="170" cy="44" r="4"/><path d="M150 58 q10 8 20 0" stroke="#C0392B" stroke-width="3" fill="none"/><rect x="132" y="80" width="56" height="80" rx="16" fill="#2B77B8"/><path d="M132 92 L92 140 M188 92 L228 140" stroke="#F3D2B3" stroke-width="12" stroke-linecap="round"/><path d="M146 160 L140 236 M174 160 L180 236" stroke="#2E7D4F" stroke-width="14" stroke-linecap="round"/>${lab(222,30,"head",190,44)}${lab(10,120,"arm",100,132)}${lab(250,190,"leg",182,206)}${lab(8,230,"foot",136,236)}${lab(240,120,"hand",226,140)}</svg>`,
+ earth:`<svg viewBox="0 0 320 240" xmlns="http://www.w3.org/2000/svg"><circle cx="160" cy="120" r="100" fill="#2B77B8"/><path d="M95 70 q30 -20 55 5 q-10 30 -45 25 q-20 -10 -10 -30z M180 120 q40 -15 55 15 q-15 40 -55 30 q-15 -25 0 -45z M120 160 q20 0 25 25 q-25 10 -35 -10z" fill="#4CAF50"/>${lab(10,30,"water",95,95)}${lab(250,225,"land",215,160)}</svg>`,
+ sun:`<svg viewBox="0 0 320 240" xmlns="http://www.w3.org/2000/svg"><circle cx="70" cy="62" r="34" fill="#F2A900"/>${[...Array(10)].map((_,i)=>{const a=i*36*Math.PI/180;return `<line x1="${70+Math.cos(a)*42}" y1="${62+Math.sin(a)*42}" x2="${70+Math.cos(a)*58}" y2="${62+Math.sin(a)*58}" stroke="#F2A900" stroke-width="5" stroke-linecap="round"/>`}).join("")}<rect y="190" width="320" height="50" fill="#4CAF50"/><text x="180" y="185" font-size="46">🌻🌷</text><text x="150" y="70" font-size="18" font-weight="700" ${_F}>heat 🌡️ and light 💡</text></svg>`,
+ butterfly:`<svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg"><ellipse cx="105" cy="90" rx="62" ry="50" fill="#EC4899"/><ellipse cx="215" cy="90" rx="62" ry="50" fill="#EC4899"/><ellipse cx="115" cy="160" rx="42" ry="34" fill="#F2A900"/><ellipse cx="205" cy="160" rx="42" ry="34" fill="#F2A900"/><rect x="152" y="50" width="16" height="150" rx="8" fill="#1D2A22"/>${[[90,80],[115,105],[80,110]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="9" fill="#fff"/><circle cx="${320-x}" cy="${y}" r="9" fill="#fff"/>`).join("")}<text x="160" y="214" font-size="20" font-weight="800" text-anchor="middle" ${_F}>3 + 3 = 6</text></svg>`,
+ venn:`<svg viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg"><circle cx="120" cy="100" r="80" fill="#E4572E" opacity=".25"/><circle cx="200" cy="100" r="80" fill="#2B77B8" opacity=".25"/><text x="70" y="40" font-size="18" font-weight="700" ${_F}>🍎 apple</text><text x="200" y="40" font-size="18" font-weight="700" ${_F}>🍌 banana</text><text x="78" y="110" font-size="34">🍎🍎🍎</text><text x="196" y="110" font-size="34">🍌🍌</text></svg>`,
+ diya:`<svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg"><path d="M90 140 q70 60 140 0z" fill="#C0392B"/><path d="M160 140 q-22 -40 0 -80 q22 40 0 80z" fill="#F2A900"/><path d="M160 135 q-10 -22 0 -46 q10 24 0 46z" fill="#E67E22"/><text x="160" y="210" font-size="34" font-weight="800" text-anchor="middle" ${_F}>अग्नि</text></svg>`,
+ dawn:`<svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="exd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F7A5B8"/><stop offset="1" stop-color="#FFD27A"/></linearGradient></defs><rect width="320" height="220" fill="url(#exd)"/><circle cx="160" cy="180" r="46" fill="#FFCF3A"/><rect y="180" width="320" height="40" fill="#3F8F4F"/><text x="40" y="60" font-size="28">🐦</text><text x="250" y="80" font-size="24">🐦</text></svg>`,
+ river:`<svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg"><rect width="320" height="220" fill="#DFF2D8"/><path d="M0 120 q80 -40 160 0 t160 0 v60 q-80 -30 -160 0 t-160 0z" fill="#4E9AF1"/><text x="30" y="80" font-size="40">🌳</text><text x="240" y="70" font-size="40">🌳</text><text x="130" y="60" font-size="26">🐦</text><text x="120" y="160" font-size="28">🐟</text><text x="200" y="150" font-size="28">🐟</text></svg>`,
+ cloud:`<svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg"><g fill="#9AA9B8"><circle cx="120" cy="60" r="36"/><circle cx="165" cy="45" r="44"/><circle cx="210" cy="62" r="34"/><rect x="100" y="60" width="130" height="36" rx="18"/></g>${[110,140,170,200,230].map(x=>`<line x1="${x}" y1="110" x2="${x-8}" y2="140" stroke="#2B77B8" stroke-width="4" stroke-linecap="round"/>`).join("")}<rect y="175" width="320" height="45" fill="#8D6E4E"/><text x="40" y="180" font-size="34">🌱🌱🌾🌾🌱🌾</text></svg>`,
+};
+const nl=(from,to,marks,hop)=>{let t="";const st=280/(to-from);for(let n=from;n<=to;n++){const x=20+(n-from)*st;t+=`<line x1="${x}" y1="120" x2="${x}" y2="134" stroke="#333" stroke-width="3"/><text x="${x}" y="158" font-size="16" font-weight="700" text-anchor="middle" fill="${(marks||[]).includes(n)?"#E4572E":"#333"}" ${_F}>${n}</text>`}
+  if(hop)for(let n=hop[0];n<hop[1];n++){const x=20+(n-from)*st;t+=`<path d="M${x} 116 q${st/2} -40 ${st} 0" stroke="#2E7D4F" stroke-width="3" fill="none"/>`}
+  return `<svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg"><line x1="10" y1="127" x2="310" y2="127" stroke="#333" stroke-width="4"/>${t}<text x="${20+((hop?hop[0]:0)-from)*st}" y="60" font-size="30" text-anchor="middle">🐸</text></svg>`};
+const tens=(tn,on)=>{let g="";for(let i=0;i<tn;i++)for(let j=0;j<10;j++)g+=`<rect x="${40+i*26}" y="${30+j*14}" width="20" height="12" rx="2" fill="#4E9AF1"/>`;for(let k=0;k<on;k++)g+=`<rect x="${90+tn*26+(k%3)*26}" y="${100+Math.floor(k/3)*26}" width="20" height="20" rx="4" fill="#F4A51C"/>`;
+  return `<svg viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg">${g}<text x="300" y="60" font-size="44" font-weight="800" text-anchor="end" ${_F}>${tn*10+on}</text></svg>`};
+const clockEx=h=>{const a=(h%12)*30*Math.PI/180;let n="";for(let i=1;i<=12;i++){const b=i*30*Math.PI/180;n+=`<text x="${160+Math.sin(b)*72}" y="${116-Math.cos(b)*72}" font-size="16" font-weight="700" text-anchor="middle" ${_F}>${i}</text>`}
+  return `<svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg"><circle cx="160" cy="110" r="92" fill="#fff" stroke="#2B77B8" stroke-width="8"/>${n}<line x1="160" y1="110" x2="160" y2="44" stroke="#E4572E" stroke-width="5" stroke-linecap="round"/><line x1="160" y1="110" x2="${160+Math.sin(a)*48}" y2="${110-Math.cos(a)*48}" stroke="#1D2A22" stroke-width="8" stroke-linecap="round"/><circle cx="160" cy="110" r="7"/></svg>`};
+const S3=(steps,look,ex)=>({steps,look,ex});
+const SCAFFOLD={
+/* maths */
+"cam1-maths-1":S3(["Draw ladybirds in a long row, one at a time.","Count them as you draw: one, two, three…","Write the number under each ladybird."],["I drew lots of ladybirds in a row","Each one has a number under it","The numbers go in order"],exGrid([["🐞","1"],["🐞","2"],["🐞","3"],["🐞","4"],["🐞","5"]])),
+"cam1-maths-2":S3(["Draw a long line and write 0 to 10 on it.","Put a frog on 3.","Draw jumps from 3 to 7 and count them."],["My line has numbers 0 to 10","The frog starts on 3","I drew 4 hops to 7"],nl(0,10,[3,7],[3,7])),
+"cam1-maths-3":S3(["Draw 1 tall stick of ten blocks.","Draw 4 little ones blocks next to it.","Write 14."],["I drew 1 ten stick","I drew 4 ones","I wrote 14"],tens(1,4)),
+"cam1-maths-4":S3(["Draw 6 red balls.","Draw 4 blue balls next to them.","Write 6 + 4 = 10."],["I drew two groups","Both groups make 10 together","I wrote the number sentence"],exGrid([["🔴🔴🔴","6"],["🔵🔵","4"],["=","10"]],3)),
+"cam1-maths-5":S3(["Draw a butterfly body and two wings.","Put the same number of spots on each wing.","Write the double, like 3 + 3 = 6."],["Both wings have the same spots","I wrote a double sum","My butterfly is colourful"],EX.butterfly),
+"cam1-maths-6":S3(["Draw a big round roti.","Draw a line down the middle.","Colour one half."],["My roti is round","The line makes 2 equal parts","I coloured one half"],`<svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg"><circle cx="160" cy="110" r="90" fill="#F4D58D" stroke="#B9852C" stroke-width="4"/><path d="M160 20 A90 90 0 0 1 160 200Z" fill="#E4572E" opacity=".75"/><line x1="160" y1="14" x2="160" y2="206" stroke="#1D2A22" stroke-width="4" stroke-dasharray="10 7"/><text x="230" y="215" font-size="20" font-weight="800" ${_F}>½</text></svg>`),
+"cam1-maths-7":S3(["Draw a toy with a price tag of 5.","Draw coins that add up to 5.","Write the coins, like 2 + 2 + 1 = 5."],["My toy has a price","My coins make 5","I wrote the sum"],exGrid([["🧸","5 AED"],["②②①","2+2+1 = 5"]],2)),
+"cam1-maths-8":S3(["Draw a big circle and write 12, 3, 6, 9.","Long hand points up to 12.","Short hand points to 3. Draw what you do then."],["My clock has numbers","The long hand points to 12","The short hand points to 3"],clockEx(3)),
+"cam1-maths-9":S3(["Draw a square body and a circle head.","Add triangle feet and rectangle arms.","Write the shape names."],["I used circles, squares, triangles and rectangles","I labelled the shapes","My robot is colourful"],`<svg viewBox="0 0 320 240" xmlns="http://www.w3.org/2000/svg"><circle cx="160" cy="45" r="32" fill="#E4572E"/><rect x="115" y="82" width="90" height="90" fill="#2B77B8"/><rect x="62" y="96" width="50" height="22" fill="#F2A900"/><rect x="208" y="96" width="50" height="22" fill="#F2A900"/><polygon points="130,178 115,215 150,215" fill="#2E7D4F"/><polygon points="190,178 170,215 205,215" fill="#2E7D4F"/><text x="200" y="40" font-size="15" font-weight="700" ${_F}>circle</text><text x="128" y="132" font-size="15" font-weight="700" fill="#fff" ${_F}>square</text><text x="10" y="90" font-size="15" font-weight="700" ${_F}>rectangle</text><text x="215" y="210" font-size="15" font-weight="700" ${_F}>triangle</text></svg>`),
+"cam1-maths-10":S3(["Draw a bed in the middle.","Draw a teddy ON the bed and a ball UNDER it.","Draw a lamp NEXT TO the bed."],["Teddy is on the bed","Ball is under the bed","Lamp is next to the bed"],exGrid([["🧸","on"],["🛏️",""],["⚽","under"],["🛏️💡","next to"]],2)),
+"cam1-maths-11":S3(["Ask 5 people their favourite fruit.","Draw one fruit for each answer in rows.","Circle the fruit with the most."],["I asked people","I drew one picture for each answer","I found the most popular"],exGrid([["🍎🍎🍎","apple 3"],["🍌","banana 1"],["🥭","mango 1"]],1)),
+"cam1-maths-12":S3(["Fold your page in two.","Draw something CERTAIN on one side (the Sun rising).","Draw something IMPOSSIBLE on the other (a flying elephant)."],["I drew a certain thing","I drew an impossible thing","I wrote certain and impossible"],exGrid([["🌅","certain"],["🐘🪽","impossible"]],2)),
+/* science */
+"cam1-science-1":S3(["Draw soil at the bottom and roots under it.","Draw a stem, leaves and a flower on top.","Write: root, stem, leaf, flower."],["I drew roots under the soil","I drew a stem, leaves and a flower","I wrote 4 labels"],EX.plant),
+"cam1-science-2":S3(["Draw yourself: head, body, arms, legs.","Add eyes, ears, nose and mouth.","Write the body part names with arrows."],["I drew my whole body","I drew my face parts","I added labels"],EX.body),
+"cam1-science-3":S3(["Fold your page in two: Living | Non-living.","Draw 3 living things (a cat, a tree, me).","Draw 3 non-living things (a rock, a toy, a chair)."],["I drew 3 living things","I drew 3 non-living things","I circled the living ones"],exGrid([["🐱","living"],["🌳","living"],["🧒","living"],["🪨","non-living"],["🧸","non-living"],["🪑","non-living"]],3)),
+"cam1-science-4":S3(["Find 4 things at home.","Draw each one.","Write what it is made of: wood, metal, plastic, fabric."],["I drew 4 things","I wrote the material for each","The materials are correct"],exGrid([["🪑","wood"],["🥄","metal"],["🧴","plastic"],["👕","fabric"]],4)),
+"cam1-science-5":S3(["Draw a sponge being squashed.","Draw a rubber band being stretched.","Draw a straw bending and a towel twisting."],["I drew squash and stretch","I drew bend and twist","I wrote the action words"],exGrid([["🧽","squash"],["➰","stretch"],["🥤","bend"],["🌀","twist"]],4)),
+"cam1-science-6":S3(["Draw yourself pushing a swing (arrow away from you).","Draw yourself pulling a door (arrow towards you).","Draw a boat that floats on water."],["I drew a push","I drew a pull","I drew something floating"],exGrid([["🧒➡️","push"],["⬅️🚪","pull"],["⛵🌊","floats"]],3)),
+"cam1-science-7":S3(["Draw 4 things that make sounds.","Make the loud one big and the quiet one small.","Write loud and quiet."],["I drew 4 sound makers","I showed loud and quiet","I wrote the words"],exGrid([["🥁","loud"],["🦁","loud"],["🐭","quiet"],["🔔","ring"]],4)),
+"cam1-science-8":S3(["Draw 3 things at home that use electricity.","Draw a magnet.","Draw a paper clip jumping to the magnet."],["I drew 3 electric things","I drew a magnet","I showed what a magnet picks up"],exGrid([["💡","lamp"],["📺","TV"],["🔌","plug"],["🧲📎","magnet"]],4)),
+"cam1-science-9":S3(["Draw a big circle for the Earth.","Colour lots of blue sea.","Add some green and brown land."],["My Earth is round","Most of it is blue water","I added land"],EX.earth),
+"cam1-science-10":S3(["Draw a big yellow Sun with rays.","Draw a garden with flowers under it.","Write heat and light."],["I drew the Sun","I drew a garden","I wrote heat and light"],EX.sun),
+/* english */
+"cam1-english-1":S3(["Say each sound: c-a-t.","Write the word cat.","Draw a picture. Do the same for dog and sun."],["I wrote cat, dog and sun","My letters sit on the line","I drew a picture for each"],exGrid([["🐱","cat"],["🐶","dog"],["☀️","sun"]],3)),
+"cam1-english-2":S3(["Write at.","Put a letter in front: c + at, h + at…","Draw one of your words."],["I wrote 4 -at words","Each word rhymes","I drew one word"],exGrid([["🐱","cat"],["🎩","hat"],["🦇","bat"],["🧘","mat"]],4)),
+"cam1-english-3":S3(["Say your sentence out loud first.","Start with a capital letter: I like my …","End with a full stop. Read it to a grown-up."],["I wrote a whole sentence","It starts with a capital","It ends with a full stop"],exGrid([["🧸","I like my teddy."]],1)),
+"cam1-english-4":S3(["Draw 3 boxes: 1, 2, 3.","Box 1: beginning. Box 2: middle. Box 3: end.","Write one word under each box."],["I drew 3 boxes","They are in the right order","I wrote a word for each"],exGrid([["👨🧢","1 begin"],["🐒🧢","2 middle"],["🧢⬇️","3 end"]],3)),
+"cam1-english-5":S3(["Think of 2 things about your family.","Write sentence 1 with a capital and a full stop.","Write sentence 2 the same way."],["I wrote 2 sentences","Each starts with a capital","Each ends with a full stop"],exGrid([["👨‍👩‍👧","I love my family."],["🍰","We eat cake."]],1)),
+"cam1-english-6":S3(["Draw a picture of something you can see.","Write: I can see a …","Leave finger spaces between words."],["I drew a picture","I wrote I can see a …","I left finger spaces"],exGrid([["🐦","I can see a bird."]],1)),
+"cam1-english-7":S3(["Start like a little c.","Write a c d g o, slowly.","Make g's tail go below the line."],["My letters start like c","They sit on the line","g has a tail"],exGrid([["c",""],["a",""],["d",""],["g",""],["o",""]],5)),
+"cam1-english-8":S3(["Draw you and a friend talking.","Think of a question: What…? Where…?","Write it with a question mark."],["I drew two people","I wrote a question","It ends with ?"],exGrid([["👧💬👦","What is your favourite game?"]],1)),
+/* hindi */
+"cbse1-hindi-1":S3(["अ, आ, इ, ई लिखो।","हर अक्षर के पास एक चित्र बनाओ।","धीरे-धीरे बोलो: अ से अनार।"],["4 स्वर लिखे","हर स्वर का चित्र बनाया","अक्षर साफ़ हैं"],exGrid([["अ","अनार"],["आ","आम"],["इ","इमली"],["ई","ईख"]],4)),
+"cbse1-hindi-2":S3(["उ, ऊ, ए, ऐ लिखो।","उल्लू का चित्र बनाओ।","हर अक्षर बोलो।"],["4 स्वर लिखे","उल्लू बनाया","अक्षर साफ़ हैं"],exGrid([["उ","उल्लू 🦉"],["ऊ","ऊन 🧶"],["ए","एक 1"],["ऐ","ऐनक 👓"]],4)),
+"cbse1-hindi-3":S3(["क, ख, ग, घ लिखो।","कबूतर और गमला बनाओ।","ऊपर की रेखा (शिरोरेखा) लगाओ।"],["4 व्यंजन लिखे","2 चित्र बनाए","शिरोरेखा लगाई"],exGrid([["क","कबूतर 🕊️"],["ख","खरगोश 🐇"],["ग","गमला 🪴"],["घ","घर 🏠"]],4)),
+"cbse1-hindi-4":S3(["च, छ, ज, झ लिखो।","जहाज़ और छतरी बनाओ।","अक्षर बोलो।"],["4 व्यंजन लिखे","2 चित्र बनाए","अक्षर साफ़ हैं"],exGrid([["च","चम्मच 🥄"],["छ","छतरी ☂️"],["ज","जहाज़ 🚢"],["झ","झंडा 🚩"]],4)),
+"cbse1-hindi-5":S3(["ट, ठ, ड, ढ लिखो।","टमाटर और डमरू बनाओ।","अक्षर बोलो।"],["4 व्यंजन लिखे","2 चित्र बनाए","अक्षर साफ़ हैं"],exGrid([["ट","टमाटर 🍅"],["ठ","ठठेरा"],["ड","डमरू 🪘"],["ढ","ढक्कन"]],4)),
+"cbse1-hindi-6":S3(["त, थ, द, ध, न लिखो।","तितली बनाओ।","अक्षर बोलो।"],["5 व्यंजन लिखे","तितली बनाई","अक्षर साफ़ हैं"],exGrid([["त","तितली 🦋"],["थ","थैला 👜"],["द","दवात"],["ध","धनुष 🏹"],["न","नल 🚰"]],5)),
+"cbse1-hindi-7":S3(["प, फ, ब, भ, म लिखो।","फूल और मछली बनाओ।","अक्षर बोलो।"],["5 व्यंजन लिखे","2 चित्र बनाए","अक्षर साफ़ हैं"],exGrid([["प","पतंग 🪁"],["फ","फूल 🌸"],["ब","बतख 🦆"],["भ","भालू 🐻"],["म","मछली 🐟"]],5)),
+"cbse1-hindi-8":S3(["नाना, दादा, राजा, काला लिखो।","हर शब्द में ा की मात्रा देखो।","एक शब्द का चित्र बनाओ।"],["4 शब्द लिखे","हर शब्द में ा है","चित्र बनाया"],exGrid([["👴","नाना"],["👴🏽","दादा"],["🤴","राजा"],["⚫","काला"]],4)),
+"cbse1-hindi-9":S3(["दिन, मीठा, तितली लिखो।","ि पहले लगती है, ी बाद में।","मात्रा पर गोला बनाओ।"],["3 शब्द लिखे","ि और ी सही जगह","मात्रा पर गोला"],exGrid([["☀️","दिन"],["🍬","मीठा"],["🦋","तितली"]],3)),
+"cbse1-hindi-10":S3(["गुड़िया और फूल लिखो।","ु और ू नीचे लगती हैं।","दोनों के चित्र बनाओ।"],["2 शब्द लिखे","मात्रा नीचे लगी","चित्र बनाए"],exGrid([["🪆","गुड़िया"],["🌸","फूल"]],2)),
+"cbse1-hindi-11":S3(["लिखो: हवा चली।","पेड़ का चित्र बनाओ, पत्ते उड़ते हुए।","अंत में । लगाओ।"],["वाक्य लिखा","पेड़ बनाया","। लगाया"],exGrid([["🌳🍃","हवा चली।"]],1)),
+"cbse1-hindi-12":S3(["चाँद बनाओ।","दो तुकांत जोड़े लिखो: गाना-खाना।","तुक वाले हिस्से पर रंग भरो।"],["चाँद बनाया","2 तुकांत जोड़े","तुक पर रंग"],exGrid([["🌙",""],["गाना","खाना"],["मोर","चोर"]],3)),
+/* sanskrit */
+k1:S3(["Write नमस्ते, सुप्रभातम्, धन्यवादः.","Draw who you say each one to.","Say them out loud."],["I wrote 3 words","I drew people","Words are in Devanagari"],exGrid([["🙏","नमस्ते"],["🌅","सुप्रभातम्"],["🎁","धन्यवादः"]],3)),
+k2:S3(["Draw 1 flower, then 2, then 3.","Write एकम्, द्वे, त्रीणि under them.","Count aloud in Sanskrit."],["I drew 1, 2 and 3 flowers","I wrote the 3 numbers","They match"],exGrid([["🌸","एकम्"],["🌸🌸","द्वे"],["🌸🌸🌸","त्रीणि"]],3)),
+k3:S3(["Draw a big face.","Draw eyes, ears and a nose.","Write नेत्रम्, कर्णः, नासिका with arrows."],["I drew a face","I labelled eye, ear, nose","Labels point to the right part"],EX.face),
+k4:S3(["Draw a red flower.","Draw a green leaf.","Write रक्तः and हरितः under them."],["Flower is red","Leaf is green","I wrote both colour words"],exGrid([["🌺","रक्तः red"],["🍃","हरितः green"]],2)),
+k5:S3(["Draw a mango.","Draw a banana.","Write आम्रम् and कदलीफलम्."],["I drew a mango","I drew a banana","I wrote both words"],exGrid([["🥭","आम्रम्"],["🍌","कदलीफलम्"]],2)),
+k6:S3(["Draw a cat.","Draw a bird.","Write मार्जारः and खगः."],["I drew a cat","I drew a bird","I wrote both words"],exGrid([["🐱","मार्जारः"],["🐦","खगः"]],2)),
+k7:S3(["Draw a boy, a girl and a book.","Write सः under the boy, सा under the girl.","Write तत् under the book."],["3 pictures","सः सा तत् in the right place","Words are neat"],exGrid([["👦","सः"],["👧","सा"],["📕","तत्"]],3)),
+k8:S3(["Write सर्वे भवन्तु सुखिनः.","Draw happy people all around it.","Say the prayer slowly."],["I wrote the prayer","I drew happy people","I know it means everyone be happy"],exGrid([["😊😊😊","सर्वे भवन्तु सुखिनः"]],1)),
+/* rig veda */
+r1:S3(["Draw a teacher sitting under a tree.","Draw children listening (no books!).","Draw music notes coming from their mouths."],["I drew a teacher","I drew children listening","There are no books"],exGrid([["🧑‍🏫🌳","teacher"],["👧👦🎶","children say the hymns"]],2)),
+r2:S3(["Colour the top of the sky pink and gold.","Draw the Sun peeping up.","Add birds waking up."],["Sky is pink and gold","The Sun is rising","Birds are waking"],EX.dawn),
+r3:S3(["Draw a diya (clay lamp).","Draw its flame: yellow and orange.","Write अग्नि under it."],["I drew a diya","It has a flame","I wrote अग्नि"],EX.diya),
+r4:S3(["Draw the Sun with rays.","Draw a small plant growing.","Draw arrows from the Sun to the plant."],["I drew the Sun","I drew a plant","Arrows show sunlight helping"],EX.sun),
+r5:S3(["Draw the Sun rising.","Write one word: तत् or सवितुर्.","Colour it bright."],["I drew the rising Sun","I wrote a word from the mantra","It is bright and colourful"],EX.dawn),
+r6:S3(["Draw a wavy blue river.","Add trees on both sides.","Draw fish in the water and birds above."],["I drew a river","I drew trees","I drew fish and birds"],EX.river),
+r7:S3(["Draw a grey cloud at the top.","Draw rain drops falling.","Draw a field with little plants."],["I drew a cloud","I drew rain","I drew plants growing"],EX.cloud),
+r8:S3(["Draw yourself.","Draw 3 speech bubbles.","Write the same line in each bubble."],["I drew myself","3 speech bubbles","Same words 3 times"],exGrid([["🧒","💬 💬 💬"],["अग्निमीळे","× 3"]],2)),
+};
+function genericScaffold(task){return {steps:["Listen to the task again 👂","Draw the main thing big, in the middle","Add words or numbers, then colour it"],look:["I did what the task asked","I added words, labels or numbers","I used colours"],ex:null}}
+function scaffoldFor(t,aiScaf,task){
+  if(aiScaf&&(aiScaf.steps||aiScaf.look_for||aiScaf.example)){let ex=null;if(aiScaf.example&&aiScaf.example.svg){const n=cleanSVG(aiScaf.example.svg);if(n)ex=n.outerHTML}
+    return {steps:(aiScaf.steps||[]).slice(0,4).map(String),look:(aiScaf.look_for||[]).slice(0,4).map(String),ex:ex||(SCAFFOLD[t.id]||{}).ex||null}}
+  return SCAFFOLD[t.id]||genericScaffold(task)}
+
 /* ================= GROWN-UPS ================= */
 function renderGrown(){
   const h=$("tab-grown");h.textContent="";
@@ -2820,12 +2970,16 @@ function askChikuBtn(label){const b=el(`<button type="button" class="btn alt ask
 
 /* work checked without AI: celebrate the effort, grown-up can look */
 async function selfCheck(subject,t,typed,drew){
-  const out=$("checkOut");const shot=drew&&lessonBoard?URL.createObjectURL(await lessonBoard.toBlob()):null;
-  const n=drew&&typed?3:2;out.innerHTML="";
-  const fb=el(`<div class="fb">${shot?`<img class="workshot" alt="My work" src="${shot}">`:""}${typed?`<p></p>`:""}<div>${stars3(n)}</div><strong>Wonderful work!</strong><p class="note" style="margin-top:4px">Show it to a grown-up and tell them what you did.</p></div>`);
-  if(typed)fb.querySelector("p").textContent=typed;out.append(fb);
+  const out=$("checkOut");const look=(LP&&LP.sc&&LP.sc.look)||[];const ticked=lookTicked();
+  if(look.length&&!ticked){out.innerHTML="";const m=el(`<div class="fb"><strong>Let's check it together! ✅</strong><p>Look at your work and tap each <b>Did I…?</b> box you finished. Then press Submit again.</p><div class="tools" style="margin-top:8px"><button class="btn alt" type="button">💬 Ask Chiku on Claude to look</button></div></div>`);m.querySelector("button").onclick=openClaude;out.append(m);
+    const lf=$("lookFor");lf.classList.add("pulse");setTimeout(()=>lf.classList.remove("pulse"),2400);lf.scrollIntoView({behavior:"smooth",block:"center"});hush();queueSpeech("Let's check it together! Tap each box you finished, then press submit again.","en");return}
+  const shot=drew&&lessonBoard?URL.createObjectURL(await lessonBoard.toBlob()):null;
+  const n=look.length?(ticked>=look.length?3:ticked>=Math.ceil(look.length/2)?2:1):(drew&&typed?3:2);out.innerHTML="";
+  const fb=el(`<div class="fb">${shot?`<img class="workshot" alt="My work" src="${shot}">`:""}${typed?`<p></p>`:""}<div>${stars3(n)}</div><strong></strong><p class="note" style="margin-top:4px"></p></div>`);
+  if(typed)fb.querySelector("p").textContent=typed;fb.querySelector("strong").textContent=n===3?"You did every step! Wonderful work!":"Good work! You did "+ticked+" of "+look.length+" things.";
+  fb.querySelector(".note").textContent=n===3?"Show it to a grown-up and tell them about it.":"Look at the boxes you didn't tick. Can you add them? Then press Submit again.";out.append(fb);
   const d=setTopicStars(t.id,n);refreshLessonStars(t.id);if(d)earn(d,"Great work!");else SFX.ding();Buddy.happy();
-  hush();queueSpeech("Wonderful work! Show it to a grown-up and tell them what you did.","en");
+  hush();queueSpeech(fb.querySelector("strong").textContent+" "+fb.querySelector(".note").textContent,"en");
   if(drew&&S.pid)saveWork(t,"My own work");
   document.dispatchEvent(new CustomEvent("work-checked",{detail:{n,topic:t.id}}));
 }
