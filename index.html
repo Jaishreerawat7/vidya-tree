@@ -2280,7 +2280,7 @@ function showTurn(){
      <details class="typed"><summary>Or type your answer</summary><textarea id="typedAns" rows="2" placeholder="Type here"></textarea></details>
      <div class="tools"><button class="btn mega" type="button" id="checkBtn">✓ Submit my work</button><button class="btn ghost" type="button" id="saveWork">Save to my book</button><button class="btn ghost" type="button" id="skipTurn">Skip</button></div>
      <div id="checkOut"></div></div>`);
-  st.append(yc);$("yourTask").textContent=LP.turn||t.task;
+  st.append(yc);if(!(LP.scaf&&(LP.scaf.steps||LP.scaf.look_for))&&SCAFFOLD[t.id]&&OFFLINE_LESSONS[t.id])LP.turn=OFFLINE_LESSONS[t.id].turn;$("yourTask").textContent=LP.turn||t.task;
   yc.querySelector(".lp-turn-head .iconbtn").onclick=()=>speak($("yourTask").textContent,"en");
   lessonBoard=Board($("boardHost"),{guide:SUBJ[LP.subject].guide,ratio:.75,max:620,task:$("yourTask").textContent,onSubmit:()=>checkWork(LP.subject,t)});
   renderScaffold(scaffoldFor(t,LP.scaf,$("yourTask").textContent));
